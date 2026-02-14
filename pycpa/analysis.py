@@ -684,6 +684,9 @@ def analyze_system(system, task_results=None, only_dependent_tasks=False,
 
         This based on the procedure described in Section 7.2 in [Richter2005]_.
     """
+    # Validate TSN parameters before starting analysis
+    _validate_tsn_parameters(system)
+
     if task_results is None:
         task_results = dict()
         for r in system.resources:
@@ -870,4 +873,97 @@ def _check_load_constrains(constraints, task_results):
         if resource.load() > load:
             violations.append(resource)
     return violations
+
+
+def _validate_tsn_parameters(system):
+    """ Validate TSN scheduling parameters for all TSN_SendingTask tasks.
+
+    This function checks the following constraints on a per-resource basis:
+    1. For tasks using TAS on the same resource:
+       - All tas_cycle_time values must be the same
+       - If scheduling_parameter (priority) is the same, tas_window_time must be the same
+    2. For tasks using CQF on the same resource:
+       - If TAS is also used on the resource, cqf_cycle_time must be an even positive integer
+         multiple (or equal) of tas_cycle_time
+       - Between tasks using CQF, their cqf_cycle_time values must be equal or have
+         an even positive integer multiple relationship
+
+    :param system: The system to validate
+    :type system: model.System
+    :raises ValueError: If any TSN parameter constraint is violated
+    """
+    for resource in system.resources:
+        # Collect TSN_SendingTask tasks on this resource
+        tsn_tasks = [t for t in resource.tasks if getattr(t, 'is_tsn_sending_task', False)]
+
+        if not tsn_tasks:
+            continue
+
+        # Separate tasks by their scheduling mechanism
+        tas_tasks = [t for t in tsn_tasks if t.uses_tas()]
+        cqf_tasks = [t for t in tsn_tasks if t.uses_cqf()]
+
+        # Constraint 1: For tasks using TAS on the same resource
+        if tas_tasks:
+            # All tas_cycle_time must be the same
+            tas_cycle_times = set(t.tas_cycle_time for t in tas_tasks)
+            if len(tas_cycle_times) > 1:
+                raise ValueError(
+                    "On resource '%s', all tasks using TAS must have the same tas_cycle_time. "
+                    "Found different values: %s" % (resource.name, tas_cycle_times))
+
+            # If scheduling_parameter is the same, tas_window_time must be the same
+            # Group tasks by scheduling_parameter and check tas_window_time within each group
+            tasks_by_sched_param = {}
+            for t in tas_tasks:
+                sched_param = getattr(t, 'scheduling_parameter', None)
+                if sched_param not in tasks_by_sched_param:
+                    tasks_by_sched_param[sched_param] = []
+                tasks_by_sched_param[sched_param].append(t)
+
+            for sched_param, tasks in tasks_by_sched_param.items():
+                tas_window_times = set(t.tas_window_time for t in tasks)
+                if len(tas_window_times) > 1:
+                    raise ValueError(
+                        "On resource '%s', tasks using TAS with scheduling_parameter=%s must have "
+                        "the same tas_window_time. Found different values: %s" %
+                        (resource.name, sched_param, tas_window_times))
+
+        # Constraint 2: For tasks using CQF on the same resource
+        if cqf_tasks:
+            # Check if TAS is also used on this resource
+            if tas_tasks:
+                tas_cycle_time = tas_tasks[0].tas_cycle_time
+                # Each cqf_cycle_time must be equal to tas_cycle_time or an even positive integer multiple
+                for t in cqf_tasks:
+                    ratio = t.cqf_cycle_time / tas_cycle_time
+                    # Check if ratio is 1 (equal) OR an even positive integer multiple
+                    if ratio < 1 or ratio % 1 != 0 or (int(ratio) != 1 and int(ratio) % 2 != 0):
+                        raise ValueError(
+                            "On resource '%s', task '%s' uses CQF with cqf_cycle_time=%d, which "
+                            "is not equal to or an even positive integer multiple of tas_cycle_time=%d" %
+                            (resource.name, t.name, t.cqf_cycle_time, tas_cycle_time))
+
+            # Check relationship between cqf_cycle_times
+            for i in range(len(cqf_tasks)):
+                for j in range(i + 1, len(cqf_tasks)):
+                    t1, t2 = cqf_tasks[i], cqf_tasks[j]
+                    ratio1 = t1.cqf_cycle_time / t2.cqf_cycle_time
+                    ratio2 = t2.cqf_cycle_time / t1.cqf_cycle_time
+                    # Check if they are equal OR one is an even positive integer multiple of the other
+                    valid = False
+                    # Check if they are equal (ratio == 1)
+                    if t1.cqf_cycle_time == t2.cqf_cycle_time:
+                        valid = True
+                    # Otherwise check even multiple relationship
+                    for ratio in [ratio1, ratio2]:
+                        if ratio > 1 and ratio % 1 == 0 and int(ratio) % 2 == 0:
+                            valid = True
+                            break
+                    if not valid:
+                        raise ValueError(
+                            "On resource '%s', CQF tasks '%s' (cqf_cycle_time=%d) and '%s' "
+                            "(cqf_cycle_time=%d) must have cqf_cycle_time values that are "
+                            "equal or an even positive integer multiple of each other" %
+                            (resource.name, t1.name, t1.cqf_cycle_time, t2.name, t2.cqf_cycle_time))
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
