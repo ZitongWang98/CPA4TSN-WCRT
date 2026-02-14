@@ -1066,6 +1066,16 @@ class TSN_SendingTask(Task):
         - Other bits: Reserved for future use
         Bit value: 1 = enabled/selected, 0 = disabled/not selected
 
+    Scheduling Mechanism Compatibility Constraints (when used together):
+    --------------------------------------------------------------------
+    When multiple TSN mechanisms are combined on the same task:
+    1. TAS can ONLY be combined with Preemption
+       - When TAS and Preemption are used together, is_express defaults to True (express/fast traffic)
+    2. CQF, CBS, and ATS can ONLY be combined with Preemption
+       - The preemption attribute (is_express) is not constrained in these combinations
+
+    Note: Each mechanism (CBS, TAS, CQF, ATS, Preemption) can be used independently.
+
     TSN Mechanism Parameters (optional, depends on flags):
     ------------------------------------------------------
     idleslope : int/float
@@ -1113,55 +1123,56 @@ class TSN_SendingTask(Task):
     --------------
         Method 1: Using keyword arguments (recommended):
         ----------------------------------------------
-        # CBS-only scheduling: flags = 0b0001
+        # Single mechanism - CBS only: flags = 0b0001
         task = TSN_SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
 
-        # CBS + TAS scheduling: flags = 0b0011
-        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011,
-                          idleslope=10000000, tas_cycle_time=1000000, tas_window_time=500000)
+        # Single mechanism - TAS only: flags = 0b0010
+        task = TSN_SendingTask('task2', 15, 30, 2, 0b0010,
+                          tas_cycle_time=1000000, tas_window_time=500000)
 
-        # CQF scheduling with preemption: flags = 0b1100
-        task = TSN_SendingTask('task3', 20, 40, 3, 0b1100,
-                          cqf_cycle_time=500000, is_express=True)
+        # Single mechanism - CQF only: flags = 0b0100
+        task = TSN_SendingTask('task3', 20, 40, 3, 0b0100,
+                          cqf_cycle_time=500000)
 
-        # ATS scheduling: flags = 0b10000
+        # Single mechanism - ATS only: flags = 0b10000
         task = TSN_SendingTask('task4', 25, 50, 4, 0b10000,
                           ats_cir=2000000, ats_cbs=10000, ats_eir=500000,
                           ats_ebs=5000, ats_scheduler_group=1)
 
+        # TAS + Preemption (valid combo): flags = 0b1010
+        # is_express defaults to True for TAS + Preemption
+        task = TSN_SendingTask('task5', 30, 60, 5, 0b1010,
+                          tas_cycle_time=1000000, tas_window_time=500000)
+
+        # CQF + Preemption (valid combo): flags = 0b1100
+        # is_express can be True or False, no constraint
+        task = TSN_SendingTask('task6', 35, 70, 6, 0b1100,
+                          cqf_cycle_time=800000, is_express=False)
+
+        # CBS + Preemption (valid combo): flags = 0b1001
+        task = TSN_SendingTask('task7', 40, 80, 7, 0b1001,
+                          idleslope=12000000, is_express=True)
+
         Method 2: Using key-value pairs in positional arguments:
         -------------------------------------------------------
-        # CBS-only: (name, bcet, wcet, scheduling_parameter, flags, 'param_name', value)
-        task = TSN_SendingTask('task1', 10, 20, 1, 0b0001, 'idleslope', 5000000)
+        # TAS + Preemption: flags = 0b1010
+        task = TSN_SendingTask('task9', 25, 50, 4, 0b1010,
+                          'tas_cycle_time', 1000000,
+                          'tas_window_time', 500000)
 
-        # CBS + TAS: parameters can be in any order
-        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011,
-                          'tas_window_time', 500000,
-                          'idleslope', 10000000,
-                          'tas_cycle_time', 1000000)
-
-        # CQF + Preemption
-        task = TSN_SendingTask('task3', 20, 40, 3, 0b1100,
-                          'is_express', True,
-                          'cqf_cycle_time', 500000)
-
-        # CBS + TAS + CQF + Preemption: multiple mechanisms combined
-        task = TSN_SendingTask('task5', 30, 60, 5, 0b1111,
-                          'idleslope', 12000000,
-                          'cqf_cycle_time', 800000,
-                          'tas_cycle_time', 2000000,
-                          'tas_window_time', 1000000,
-                          'is_express', False)
+        # CQF + Preemption: flags = 0b1100
+        task = TSN_SendingTask('task10', 20, 40, 3, 0b1100,
+                          'cqf_cycle_time', 500000,
+                          'is_express', True)
 
         Method 3: Using a dictionary:
         ------------------------------
         # Pass all TSN parameters as a dictionary
         tsn_params = {
-            'idleslope': 10000000,
             'tas_cycle_time': 1000000,
             'tas_window_time': 500000
         }
-        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011, tsn_params)
+        task = TSN_SendingTask('task11', 15, 30, 2, 0b1010, tsn_params)
 
         Available parameter names:
         ---------------------------
@@ -1176,6 +1187,9 @@ class TSN_SendingTask(Task):
         'ats_ebs'            - for ATS
         'ats_scheduler_group' - for ATS
     """
+
+    # # Class identifier flag to distinguish TSN_SendingTask from other Task types
+    is_tsn_sending_task = True
 
     # # Flag bit positions for scheduling mechanism identification
     FLAG_CBS = 0        # Bit 0: Credit-Based Shaper
@@ -1301,18 +1315,56 @@ class TSN_SendingTask(Task):
 
     def validate_parameters(self):
         """ Validate that required parameters are set based on flags """
+        # # Validate required parameters for each enabled mechanism
         if self.uses_cbs() and self.idleslope is None:
             raise ValueError("CBS flag is set but idleslope is not defined")
         if self.uses_tas() and (self.tas_cycle_time is None or self.tas_window_time is None):
             raise ValueError("TAS flag is set but tas_cycle_time or tas_window_time is not defined")
         if self.uses_cqf() and self.cqf_cycle_time is None:
             raise ValueError("CQF flag is set but cqf_cycle_time is not defined")
-        if self.uses_preemption() and self.is_express is None:
-            raise ValueError("Preemption flag is set but is_express is not defined")
         if self.uses_ats():
             if None in [self.ats_cir, self.ats_cbs, self.ats_eir, self.ats_ebs, self.ats_scheduler_group]:
                 raise ValueError("ATS flag is set but ats_cir, ats_cbs, ats_eir, ats_ebs "
                                "or ats_scheduler_group is not defined")
+
+        # # Validate mechanism combination constraints
+        # # Count how many mechanisms are enabled (excluding Preemption)
+        mechanism_count = 0
+        if self.uses_cbs():
+            mechanism_count += 1
+        if self.uses_tas():
+            mechanism_count += 1
+        if self.uses_cqf():
+            mechanism_count += 1
+        if self.uses_ats():
+            mechanism_count += 1
+
+        # # Only validate combination constraints when multiple mechanisms are used
+        # # Single mechanism usage is always allowed
+        if mechanism_count > 2:
+            raise ValueError("The number of combined mechanisms exceeds the limit")
+        elif mechanism_count == 2:
+            # # When combining mechanisms, Preemption is required
+            if not self.uses_preemption():
+                raise ValueError("When combining multiple TSN mechanisms (CBS, TAS, CQF, ATS), "
+                               "Preemption must also be enabled")
+
+            # # TAS + Preemption: default is_express to True if not set
+            if self.uses_tas() and self.is_express is None:
+                self.is_express = True
+
+        # # TAS can only be combined with Preemption (not with CBS/CQF/ATS unless Preemption is also set)
+        if self.uses_tas() and (mechanism_count >= 2) and not self.uses_preemption():
+            raise ValueError("TAS can only be combined with Preemption")
+
+        # # CQF/CBS/ATS can only be combined with Preemption
+        if self.uses_cqf() and (mechanism_count >= 2) and not self.uses_preemption():
+            raise ValueError("CQF can only be combined with Preemption")
+        if self.uses_cbs() and (mechanism_count >= 2) and not self.uses_preemption():
+            raise ValueError("CBS can only be combined with Preemption")
+        if self.uses_ats() and (mechanism_count >= 2) and not self.uses_preemption():
+            raise ValueError("ATS can only be combined with Preemption")
+
         return True
 
 

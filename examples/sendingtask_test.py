@@ -3,6 +3,14 @@ Test TSN_SendingTask class for TSN mechanisms
 
 This example demonstrates the usage of TSN_SendingTask with various
 Time-Sensitive Networking (TSN) scheduling mechanisms.
+
+Mechanism Compatibility Constraints:
+- Each mechanism (CBS, TAS, CQF, ATS, Preemption) can be used independently
+- When combining multiple mechanisms, Preemption is required:
+  * TAS + Preemption: default is_express=True (express/fast traffic)
+  * CQF + Preemption: is_express not constrained
+  * CBS + Preemption: is_express not constrained
+  * ATS + Preemption: is_express not constrained
 """
 
 import logging
@@ -17,7 +25,7 @@ def test_single_mechanism():
     print("Test 1: Single Mechanism (CBS)")
     print("="*60)
 
-    # Using keyword arguments
+    # Using keyword arguments - single mechanism is allowed
     task1 = model.TSN_SendingTask('CBS_Task', 10, 20, 1, 0b0001, idleslope=5000000)
 
     print(f"Task name: {task1.name}")
@@ -28,103 +36,81 @@ def test_single_mechanism():
     print(f"Validation: {task1.validate_parameters()}")
 
 
-def test_multiple_mechanisms():
-    """Test TSN_SendingTask with multiple TSN mechanisms"""
+def test_cqf_single():
+    """Test TSN_SendingTask with single CQF mechanism"""
     print("\n" + "="*60)
-    print("Test 2: Multiple Mechanisms (CBS + TAS + CQF)")
+    print("Test 2: Single Mechanism (CQF)")
     print("="*60)
 
-    # Using keyword arguments - multiple mechanisms combined
-    task2 = model.TSN_SendingTask('Multi_Task',
+    # Single CQF mechanism is allowed
+    task2 = model.TSN_SendingTask('CQF_Task',
                              bcet=15, wcet=30, scheduling_parameter=2,
-                             scheduling_flags=0b0111,  # CBS(0)+TAS(1)+CQF(2)
-                             idleslope=10000000,
-                             tas_cycle_time=1000000,
-                             tas_window_time=500000,
+                             scheduling_flags=0b0100,  # CQF only
                              cqf_cycle_time=250000)
 
     print(f"Task name: {task2.name}")
     print(f"BCET: {task2.bcet}, WCET: {task2.wcet}")
     print(f"Scheduling flags: {bin(task2.scheduling_flags)}")
-    print(f"Uses CBS: {task2.uses_cbs()}, idleslope: {task2.idleslope}")
-    print(f"Uses TAS: {task2.uses_tas()}, cycle: {task2.tas_cycle_time}, window: {task2.tas_window_time}")
     print(f"Uses CQF: {task2.uses_cqf()}, cycle: {task2.cqf_cycle_time}")
     print(f"Validation: {task2.validate_parameters()}")
 
 
-def test_all_mechanisms():
-    """Test TSN_SendingTask with all TSN mechanisms"""
+def test_tas_preemption():
+    """Test TAS + Preemption combination (defaults to express traffic)"""
     print("\n" + "="*60)
-    print("Test 3: All Mechanisms (CBS + TAS + CQF + Preempt + ATS)")
+    print("Test 3: TAS + Preemption (defaults to express)")
     print("="*60)
 
-    # Using keyword arguments - all mechanisms
-    task3 = model.TSN_SendingTask('All_Mech_Task',
+    # TAS + Preemption - is_express defaults to True
+    task3 = model.TSN_SendingTask('TAS_Prep_Task',
                              20, 40, 3,
-                             0b11111,  # CBS+TAS+CQF+Preempt+ATS
-                             idleslope=12000000,
+                             0b1010,  # TAS + Preemption
                              tas_cycle_time=2000000,
-                             tas_window_time=1000000,
-                             cqf_cycle_time=800000,
-                             is_express=False,
-                             ats_cir=3000000,
-                             ats_cbs=15000,
-                             ats_eir=800000,
-                             ats_ebs=8000,
-                             ats_scheduler_group=2)
+                             tas_window_time=1000000)
+    # Note: is_express not set, will default to True after validation
 
     print(f"Task name: {task3.name}")
-    print(f"BCET: {task3.bcet}, WCET: {task3.wcet}")
     print(f"Scheduling flags: {bin(task3.scheduling_flags)}")
-    print(f"Uses CBS: {task3.uses_cbs()}, idleslope: {task3.idleslope}")
     print(f"Uses TAS: {task3.uses_tas()}, cycle: {task3.tas_cycle_time}, window: {task3.tas_window_time}")
-    print(f"Uses CQF: {task3.uses_cqf()}, cycle: {task3.cqf_cycle_time}")
-    print(f"Uses Preemption: {task3.uses_preemption()}, is_express: {task3.is_express}")
-    print(f"Uses ATS: {task3.uses_ats()}")
-    print(f"  ATS params - CIR: {task3.ats_cir}, CBS: {task3.ats_cbs}")
-    print(f"             EIR: {task3.ats_eir}, EBS: {task3.ats_ebs}")
-    print(f"             Scheduler group: {task3.ats_scheduler_group}")
-    print(f"Validation: {task3.validate_parameters()}")
+    print(f"Uses Preemption: {task3.uses_preemption()}, is_express: {task3.is_express} (should be True after validation)")
+    task3.validate_parameters()
+    print(f"is_express after validation: {task3.is_express}")
 
 
 def test_key_value_pairs():
     """Test TSN_SendingTask using key-value pairs in positional arguments"""
     print("\n" + "="*60)
-    print("Test 4: Key-Value Pairs in Positional Arguments")
+    print("Test 4: CQF + Preemption with key-value pairs")
     print("="*60)
 
-    # Using key-value pairs - order doesn't matter
-    task4 = model.TSN_SendingTask('KV_Pair_Task', 25, 50, 4, 0b0011,
-                             'tas_window_time', 750000,      # TAS parameter
-                             'idleslope', 15000000,          # CBS parameter
-                             'tas_cycle_time', 1500000)      # TAS parameter
+    # CQF + Preemption - is_express can be anything
+    task4 = model.TSN_SendingTask('KV_Pair_Task', 25, 50, 4, 0b1100,
+                             'cqf_cycle_time', 750000)      # CQF parameter
+    # Note: Preemption flag is set (bit 3), CQF flag is set (bit 2)
+    # is_express not set, no constraint for CQF+Preemption combo
 
     print(f"Task name: {task4.name}")
-    print(f"Uses CBS: {task4.uses_cbs()}, idleslope: {task4.idleslope}")
-    print(f"Uses TAS: {task4.uses_tas()}, cycle: {task4.tas_cycle_time}, window: {task4.tas_window_time}")
+    print(f"Scheduling flags: {bin(task4.scheduling_flags)}")
+    print(f"Uses CQF: {task4.uses_cqf()}, cycle: {task4.cqf_cycle_time}")
+    print(f"Uses Preemption: {task4.uses_preemption()}, is_express: {task4.is_express}")
     print(f"Validation: {task4.validate_parameters()}")
 
 
-def test_dictionary():
-    """Test TSN_SendingTask using dictionary for TSN parameters"""
+def test_cbs_preemption():
+    """Test CBS + Preemption combination"""
     print("\n" + "="*60)
-    print("Test 5: Dictionary for TSN Parameters")
+    print("Test 5: CBS + Preemption")
     print("="*60)
 
-    # Using dictionary
-    tsn_params = {
-        'idleslope': 8000000,
-        'tas_cycle_time': 1200000,
-        'tas_window_time': 600000,
-        'cqf_cycle_time': 600000
-    }
-
-    task5 = model.TSN_SendingTask('Dict_Task', 18, 35, 3, 0b0111, tsn_params)
+    # CBS + Preemption - is_express can be anything
+    task5 = model.TSN_SendingTask('CBS_Prep_Task', 18, 35, 3, 0b1001,
+                                  idleslope=8000000,
+                                  is_express=False)  # Preemptable frame
 
     print(f"Task name: {task5.name}")
+    print(f"Scheduling flags: {bin(task5.scheduling_flags)}")
     print(f"Uses CBS: {task5.uses_cbs()}, idleslope: {task5.idleslope}")
-    print(f"Uses TAS: {task5.uses_tas()}, cycle: {task5.tas_cycle_time}, window: {task5.tas_window_time}")
-    print(f"Uses CQF: {task5.uses_cqf()}, cycle: {task5.cqf_cycle_time}")
+    print(f"Uses Preemption: {task5.uses_preemption()}, is_express: {task5.is_express}")
     print(f"Validation: {task5.validate_parameters()}")
 
 
@@ -138,17 +124,17 @@ def test_with_system():
     s = model.System()
     r1 = s.bind_resource(model.Resource("R1", schedulers.SPPScheduler()))
 
-    # Create TSN_SendingTask with TAS mechanism
+    # Create TSN_SendingTask with single TAS mechanism
     task6 = model.TSN_SendingTask('TAS_Task', wcet=8, bcet=4,
-                             scheduling_parameter=1,
-                             scheduling_flags=0b0010,
-                             tas_cycle_time=1000000,
-                             tas_window_time=500000)
+                                  scheduling_parameter=1,
+                                  scheduling_flags=0b0010,
+                                  tas_cycle_time=1000000,
+                                  tas_window_time=500000)
     r1.bind_task(task6)
 
     # Create regular Task for comparison
     task7 = model.Task('Regular_Task', wcet=6, bcet=3,
-                      scheduling_parameter=2)
+                       scheduling_parameter=2)
     r1.bind_task(task7)
 
     # Connect tasks: task6 -> task7
@@ -166,10 +152,21 @@ def test_with_system():
     for r in sorted(s.resources, key=str):
         for t in sorted(r.tasks, key=str):
             print(f"  {t.name}: wcrt={results[t].wcrt}")
+            # Method 1: Using isinstance()
             if isinstance(t, model.TSN_SendingTask):
                 print(f"    TSN flags: {bin(t.scheduling_flags)}")
                 if t.uses_tas():
                     print(f"    TAS - cycle: {t.tas_cycle_time}, window: {t.tas_window_time}")
+
+    # Alternative: Using the is_tsn_sending_task flag
+    print("\nAlternative task identification using class flag:")
+    for r in sorted(s.resources, key=str):
+        for t in sorted(r.tasks, key=str):
+            if getattr(t, 'is_tsn_sending_task', False):
+                print(f"  {t.name} is a TSN_SendingTask")
+                print(f"    TSN flags: {bin(t.scheduling_flags)}")
+            else:
+                print(f"  {t.name} is a regular Task")
 
 
 def test_validations():
@@ -178,7 +175,8 @@ def test_validations():
     print("Test 7: Parameter Validation (Error Cases)")
     print("="*60)
 
-    # Missing required parameter for CBS
+    # 1. Missing required parameter for CBS
+    print("\n7.1: Missing CBS parameter")
     try:
         task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0001)
         task_error.validate_parameters()
@@ -186,24 +184,58 @@ def test_validations():
     except ValueError as e:
         print(f"Expected error caught: {e}")
 
-    # Missing required parameters for TAS
+    # 2. Missing required parameters for TAS
+    print("\n7.2: Missing TAS parameters")
     try:
         task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0010,
-                                      tas_cycle_time=1000000)
+                                           tas_cycle_time=1000000)
         task_error.validate_parameters()
         print("ERROR: Should have raised ValueError!")
     except ValueError as e:
         print(f"Expected error caught (TAS missing window): {e}")
+
+    # 3. Multiple mechanisms without Preemption - CBS + TAS
+    print("\n7.3: CBS + TAS without Preemption (should fail)")
+    try:
+        task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0011,
+                                           idleslope=5000000,
+                                           tas_cycle_time=1000000,
+                                           tas_window_time=500000)
+        task_error.validate_parameters()
+        print("ERROR: Should have raised ValueError!")
+    except ValueError as e:
+        print(f"Expected error caught: {e}")
+
+    # 4. CQF alone is allowed
+    print("\n7.4: CQF alone (should pass)")
+    try:
+        task_ok = model.TSN_SendingTask('OK_Task', 10, 20, 1, 0b0100,
+                                        cqf_cycle_time=500000)
+        result = task_ok.validate_parameters()
+        print(f"No error - CQF alone is allowed: {result}")
+    except ValueError as e:
+        print(f"Unexpected error: {e}")
+
+    # 5. CQF + CBS without Preemption - should fail
+    print("\n7.5: CQF + CBS without Preemption (should fail)")
+    try:
+        task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0101,
+                                           idleslope=5000000,
+                                           cqf_cycle_time=300000)
+        task_error.validate_parameters()
+        print("ERROR: Should have raised ValueError!")
+    except ValueError as e:
+        print(f"Expected error caught: {e}")
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     test_single_mechanism()
-    test_multiple_mechanisms()
-    test_all_mechanisms()
+    test_cqf_single()
+    test_tas_preemption()
     test_key_value_pairs()
-    test_dictionary()
+    test_cbs_preemption()
     test_with_system()
     test_validations()
 
