@@ -1061,21 +1061,101 @@ class SendingTask(Task):
         - Bit 0 (LSB): Task stream scheduled by CBS (Credit-Based Shaper)
         - Bit 1: Task stream scheduled by TAS (Time-Aware Shaper)
         - Bit 2: Task stream scheduled by CQF (Cyclic Queuing and Forwarding)
-        - Bit 3: Task stream scheduled by ATS (Asynchronous Traffic Shaping)
+        - Bit 3: Task stream uses frame preemption mechanism
+        - Bit 4: Task stream scheduled by ATS (Asynchronous Traffic Shaping)
         - Other bits: Reserved for future use
         Bit value: 1 = enabled/selected, 0 = disabled/not selected
 
+    TSN Mechanism Parameters (optional, depends on flags):
+    ------------------------------------------------------
+    idleslope : int/float
+        Required if CBS flag (bit 0) is set.
+        The idleSlope parameter in bits per second for CBS credit-based shaper.
+
+    tas_cycle_time : int/float
+        Required if TAS flag (bit 1) is set.
+        The cycle time (period) of the TAS Gate Control List (GCL).
+
+    tas_window_time : int/float
+        Required if TAS flag (bit 1) is set.
+        The duration for which the TAS gate window is open within each cycle.
+
+    cqf_cycle_time : int/float
+        Required if CQF flag (bit 2) is set.
+        The cycle time (rotate period) for CQF queues.
+
+    is_express : bool/int
+        Required if preemption flag (bit 3) is set.
+        Flag indicating if this frame is an express (high-speed) frame.
+        True/1 = express frame, False/0 = preemptable frame.
+
+    ats_cir : int/float
+        Required if ATS flag (bit 4) is set.
+        Committed Information Rate for ATS dual-speed dual-bucket leaky bucket.
+
+    ats_cbs : int/float
+        Required if ATS flag (bit 4) is set.
+        Committed Burst Size for ATS dual-speed dual-bucket leaky bucket.
+
+    ats_eir : int/float
+        Required if ATS flag (bit 4) is set.
+        Excess Information Rate for ATS dual-speed dual-bucket leaky bucket.
+
+    ats_ebs : int/float
+        Required if ATS flag (bit 4) is set.
+        Excess Burst Size for ATS dual-speed dual-bucket leaky bucket.
+
+    ats_scheduler_group : int
+        Required if ATS flag (bit 4) is set.
+        The scheduler group identifier for this ATS flow.
+
     Example usage:
     --------------
+        Using keyword arguments (recommended):
+        --------------------------------------
         # CBS-only scheduling: flags = 0b0001
-        task = SendingTask('task1', 10, 20, 1, 0b0001)
+        task = SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
 
         # CBS + TAS scheduling: flags = 0b0011
-        task = SendingTask('task2', 15, 30, 2, 0b0011)
+        task = SendingTask('task2', 15, 30, 2, 0b0011,
+                          idleslope=10000000, tas_cycle_time=1000000, tas_window_time=500000)
 
-        # CQF scheduling: flags = 0b0100
-        task = SendingTask('task3', 20, 40, 3, 0b0100)
+        # CQF scheduling with preemption: flags = 0b1100
+        task = SendingTask('task3', 20, 40, 3, 0b1100,
+                          cqf_cycle_time=500000, is_express=True)
+
+        # ATS scheduling: flags = 0b10000
+        task = SendingTask('task4', 25, 50, 4, 0b10000,
+                          ats_cir=2000000, ats_cbs=10000, ats_eir=500000,
+                          ats_ebs=5000, ats_scheduler_group=1)
+
+        Using positional arguments:
+        --------------------------
+        # Positional args after flags are assigned in flag bit order: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
+
+        # CBS-only: (name, bcet, wcet, scheduling_parameter, flags, idleslope)
+        task = SendingTask('task1', 10, 20, 1, 0b0001, 5000000)
+
+        # CBS + TAS: (name, bcet, wcet, scheduling_parameter, flags, idleslope, tas_cycle_time, tas_window_time)
+        task = SendingTask('task2', 15, 30, 2, 0b0011, 10000000, 1000000, 500000)
+
+        # CQF + Preemption: (name, bcet, wcet, scheduling_parameter, flags, cqf_cycle_time, is_express)
+        task = SendingTask('task3', 20, 40, 3, 0b1100, 500000, True)
+
+        # ATS: (name, bcet, wcet, scheduling_parameter, flags, ats_cir, ats_cbs, ats_eir, ats_ebs, ats_scheduler_group)
+        task = SendingTask('task4', 25, 50, 4, 0b10000, 2000000, 10000, 500000, 5000, 1)
+
+        # CBS + TAS + CQF + Preemption: (name, bcet, wcet, scheduling_parameter, flags,
+        #                                idleslope, tas_cycle_time, tas_window_time, cqf_cycle_time, is_express)
+        task = SendingTask('task5', 30, 60, 5, 0b1111, 12000000, 2000000, 1000000, 800000, False)
     """
+
+    # # Flag bit positions for scheduling mechanism identification
+    FLAG_CBS = 0        # Bit 0: Credit-Based Shaper
+    FLAG_TAS = 1        # Bit 1: Time-Aware Shaper
+    FLAG_CQF = 2        # Bit 2: Cyclic Queuing and Forwarding
+    FLAG_PREEMPT = 3    # Bit 3: Frame Preemption
+    FLAG_ATS = 4        # Bit 4: Asynchronous Traffic Shaping
 
     def __init__(self, name, *args, **kwargs):
         """ CTOR """
@@ -1084,24 +1164,133 @@ class SendingTask(Task):
 
         # # Scheduling mechanism flags for network transmission
         # # Stores the scheduling configuration for this sending task
-        # # Lower 4 bits: CBS(0), TAS(1), CQF(2), ATS(3)
+        # # Bit positions: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
         self.scheduling_flags = 0
 
-        # compatability to the call semantics with 4 parameters:
-        # (name, bcet, wcet, scheduling_parameter, scheduling_flags)
+        # # CBS (Credit-Based Shaper) parameters
+        # # Required when FLAG_CBS is set
+        self.idleslope = None
+
+        # # TAS (Time-Aware Shaper) parameters
+        # # Required when FLAG_TAS is set
+        self.tas_cycle_time = None    # GCL cycle time
+        self.tas_window_time = None   # Gate open window duration
+
+        # # CQF (Cyclic Queuing and Forwarding) parameters
+        # # Required when FLAG_CQF is set
+        self.cqf_cycle_time = None    # Queue rotate cycle time
+
+        # # Frame Preemption parameters
+        # # Required when FLAG_PREEMPT is set
+        self.is_express = None        # True for express frame, False for preemptable frame
+
+        # # ATS (Asynchronous Traffic Shaping) parameters
+        # # Required when FLAG_ATS is set - dual-speed dual-bucket leaky bucket
+        self.ats_cir = None           # Committed Information Rate
+        self.ats_cbs = None           # Committed Burst Size
+        self.ats_eir = None           # Excess Information Rate
+        self.ats_ebs = None           # Excess Burst Size
+        self.ats_scheduler_group = None  # ATS scheduler group identifier
+
+        # # Process positional arguments
+        # # Syntax: (name, bcet, wcet, scheduling_parameter, scheduling_flags, [TSN params...])
+        # # TSN parameters are assigned based on which flags are set, in flag order
+        # # Parameters are assigned in flag bit order: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
         if len(args) >= 4:
             self.bcet = args[0]
             self.wcet = args[1]
             self.scheduling_parameter = args[2]
             self.scheduling_flags = args[3]
 
+            # # Assign TSN parameters based on flags
+            # # Starting from args[4] onwards
+            param_index = 4
+
+            # # CBS parameter: idleslope (1 param)
+            if self.uses_cbs() and len(args) > param_index:
+                self.idleslope = args[param_index]
+                param_index += 1
+
+            # # TAS parameters: tas_cycle_time, tas_window_time (2 params)
+            if self.uses_tas():
+                if len(args) > param_index:
+                    self.tas_cycle_time = args[param_index]
+                    param_index += 1
+                if len(args) > param_index:
+                    self.tas_window_time = args[param_index]
+                    param_index += 1
+
+            # # CQF parameter: cqf_cycle_time (1 param)
+            if self.uses_cqf() and len(args) > param_index:
+                self.cqf_cycle_time = args[param_index]
+                param_index += 1
+
+            # # Preemption parameter: is_express (1 param)
+            if self.uses_preemption() and len(args) > param_index:
+                self.is_express = args[param_index]
+                param_index += 1
+
+            # # ATS parameters: ats_cir, ats_cbs, ats_eir, ats_ebs, ats_scheduler_group (5 params)
+            if self.uses_ats():
+                if len(args) > param_index:
+                    self.ats_cir = args[param_index]
+                    param_index += 1
+                if len(args) > param_index:
+                    self.ats_cbs = args[param_index]
+                    param_index += 1
+                if len(args) > param_index:
+                    self.ats_eir = args[param_index]
+                    param_index += 1
+                if len(args) > param_index:
+                    self.ats_ebs = args[param_index]
+                    param_index += 1
+                if len(args) > param_index:
+                    self.ats_scheduler_group = args[param_index]
+                    param_index += 1
+
         # After all mandatory attributes have been initialized above, load
-        # those set in kwargs
+        # those set in kwargs (kwargs can override positional args)
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
         assert(self.bcet <= self.wcet)
         assert(isinstance(self.scheduling_flags, int) and self.scheduling_flags >= 0)
+
+    def uses_cbs(self):
+        """ Check if this task uses CBS scheduling """
+        return (self.scheduling_flags & (1 << self.FLAG_CBS)) != 0
+
+    def uses_tas(self):
+        """ Check if this task uses TAS scheduling """
+        return (self.scheduling_flags & (1 << self.FLAG_TAS)) != 0
+
+    def uses_cqf(self):
+        """ Check if this task uses CQF scheduling """
+        return (self.scheduling_flags & (1 << self.FLAG_CQF)) != 0
+
+    def uses_preemption(self):
+        """ Check if this task uses frame preemption """
+        return (self.scheduling_flags & (1 << self.FLAG_PREEMPT)) != 0
+
+    def uses_ats(self):
+        """ Check if this task uses ATS scheduling """
+        return (self.scheduling_flags & (1 << self.FLAG_ATS)) != 0
+
+    def validate_parameters(self):
+        """ Validate that required parameters are set based on flags """
+        if self.uses_cbs() and self.idleslope is None:
+            raise ValueError("CBS flag is set but idleslope is not defined")
+        if self.uses_tas() and (self.tas_cycle_time is None or self.tas_window_time is None):
+            raise ValueError("TAS flag is set but tas_cycle_time or tas_window_time is not defined")
+        if self.uses_cqf() and self.cqf_cycle_time is None:
+            raise ValueError("CQF flag is set but cqf_cycle_time is not defined")
+        if self.uses_preemption() and self.is_express is None:
+            raise ValueError("Preemption flag is set but is_express is not defined")
+        if self.uses_ats():
+            if None in [self.ats_cir, self.ats_cbs, self.ats_eir, self.ats_ebs, self.ats_scheduler_group]:
+                raise ValueError("ATS flag is set but ats_cir, ats_cbs, ats_eir, ats_ebs "
+                               "or ats_scheduler_group is not defined")
+        return True
 
 
 class Mutex(object):
