@@ -4,13 +4,104 @@ Test TSN_SendingTask class for TSN mechanisms
 This example demonstrates the usage of TSN_SendingTask with various
 Time-Sensitive Networking (TSN) scheduling mechanisms.
 
+TSN_SendingTask Overview:
+=========================
+TSN_SendingTask extends the Task model to support network-specific scheduling
+mechanisms for real-time Ethernet and Time-Sensitive Networking (TSN) protocols.
+It supports the following scheduling mechanisms:
+- CBS (Credit-Based Shaper): Uses idleslope parameter for traffic shaping
+- TAS (Time-Aware Shaper): Uses tas_cycle_time and tas_window_time for gated transmission
+- CQF (Cyclic Queuing and Forwarding): Uses cqf_cycle_time for queue rotation
+- ATS (Asynchronous Traffic Shaping): Uses dual-speed dual-bucket leaky bucket parameters
+- Preemption: Supports frame preemption with is_express flag
+
 Mechanism Compatibility Constraints:
+===================================
 - Each mechanism (CBS, TAS, CQF, ATS, Preemption) can be used independently
 - When combining multiple mechanisms, Preemption is required:
   * TAS + Preemption: default is_express=True (express/fast traffic)
   * CQF + Preemption: is_express not constrained
   * CBS + Preemption: is_express not constrained
   * ATS + Preemption: is_express not constrained
+- Maximum of 2 mechanisms can be combined (excluding Preemption)
+
+Test Cases Summary:
+===================
+
+Test 1: Single Mechanism (CBS)
+-------------------------------
+Tests TSN_SendingTask with only CBS mechanism enabled (scheduling_flags=0b0001).
+Validates that:
+- CBS scheduling is correctly recognized (uses_cbs() returns True)
+- Required CBS parameter (idleslope) is properly set
+- Parameter validation passes for single mechanism usage
+
+Test 2: Single Mechanism (CQF)
+-------------------------------
+Tests TSN_SendingTask with only CQF mechanism enabled (scheduling_flags=0b0100).
+Validates that:
+- CQF scheduling is correctly recognized (uses_cqf() returns True)
+- Required CQF parameter (cqf_cycle_time) is properly set
+- Parameter validation passes for single mechanism usage
+
+Test 3: TAS + Preemption (defaults to express)
+-----------------------------------------------
+Tests TSN_SendingTask with TAS and Preemption enabled (scheduling_flags=0b1010).
+Validates that:
+- Both TAS and Preemption are correctly recognized
+- is_express defaults to True when TAS + Preemption is used
+- Required TAS parameters (tas_cycle_time, tas_window_time) are properly set
+
+Test 4: CQF + Preemption with key-value pairs
+----------------------------------------------
+Tests TSN_SendingTask with CQF and Preemption using key-value pair syntax
+for passing TSN parameters in positional arguments.
+Validates that:
+- Key-value pair parameter passing works correctly
+- CQF + Preemption combination is valid
+- is_express constraint is not applied for CQF + Preemption combo
+
+Test 5: CBS + Preemption
+--------------------------
+Tests TSN_SendingTask with CBS and Preemption enabled (scheduling_flags=0b1001).
+Validates that:
+- Both CBS and Preemption are correctly recognized
+- Required CBS parameter (idleslope) is properly set
+- is_express can be explicitly set to False for preemptable frames
+
+Test 6: TSN_SendingTask in Complete System
+-------------------------------------------
+Tests TSN_SendingTask integrated in a complete pycpa system with analysis.
+Validates that:
+- TSN_SendingTask can coexist with regular Task objects on the same resource
+- Task linking works correctly between TSN_SendingTask and regular Task
+- System analysis completes successfully
+- Results can be queried for both task types
+- Task type identification works using either isinstance() or is_tsn_sending_task flag
+
+Test 7: Parameter Validation (Error Cases)
+-------------------------------------------
+Tests error handling for invalid parameter configurations with 5 sub-cases:
+
+7.1: Missing CBS parameter
+    - CBS flag is set but idleslope is not provided
+    - Expected: ValueError raised
+
+7.2: Missing TAS parameters
+    - TAS flag is set but tas_window_time is not provided (only tas_cycle_time)
+    - Expected: ValueError raised
+
+7.3: CBS + TAS without Preemption (should fail)
+    - Multiple mechanisms (CBS and TAS) combined without Preemption
+    - Expected: ValueError raised - Preemption is required when combining mechanisms
+
+7.4: CQF alone (should pass)
+    - Only CQF mechanism is enabled (single mechanism is always allowed)
+    - Expected: No error - validation passes
+
+7.5: CQF + CBS without Preemption (should fail)
+    - Multiple mechanisms (CQF and CBS) combined without Preemption
+    - Expected: ValueError raised - Preemption is required when combining mechanisms
 """
 
 import logging
