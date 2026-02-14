@@ -1111,8 +1111,8 @@ class SendingTask(Task):
 
     Example usage:
     --------------
-        Using keyword arguments (recommended):
-        --------------------------------------
+        Method 1: Using keyword arguments (recommended):
+        ----------------------------------------------
         # CBS-only scheduling: flags = 0b0001
         task = SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
 
@@ -1129,25 +1129,52 @@ class SendingTask(Task):
                           ats_cir=2000000, ats_cbs=10000, ats_eir=500000,
                           ats_ebs=5000, ats_scheduler_group=1)
 
-        Using positional arguments:
-        --------------------------
-        # Positional args after flags are assigned in flag bit order: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
+        Method 2: Using key-value pairs in positional arguments:
+        -------------------------------------------------------
+        # CBS-only: (name, bcet, wcet, scheduling_parameter, flags, 'param_name', value)
+        task = SendingTask('task1', 10, 20, 1, 0b0001, 'idleslope', 5000000)
 
-        # CBS-only: (name, bcet, wcet, scheduling_parameter, flags, idleslope)
-        task = SendingTask('task1', 10, 20, 1, 0b0001, 5000000)
+        # CBS + TAS: parameters can be in any order
+        task = SendingTask('task2', 15, 30, 2, 0b0011,
+                          'tas_window_time', 500000,
+                          'idleslope', 10000000,
+                          'tas_cycle_time', 1000000)
 
-        # CBS + TAS: (name, bcet, wcet, scheduling_parameter, flags, idleslope, tas_cycle_time, tas_window_time)
-        task = SendingTask('task2', 15, 30, 2, 0b0011, 10000000, 1000000, 500000)
+        # CQF + Preemption
+        task = SendingTask('task3', 20, 40, 3, 0b1100,
+                          'is_express', True,
+                          'cqf_cycle_time', 500000)
 
-        # CQF + Preemption: (name, bcet, wcet, scheduling_parameter, flags, cqf_cycle_time, is_express)
-        task = SendingTask('task3', 20, 40, 3, 0b1100, 500000, True)
+        # CBS + TAS + CQF + Preemption: multiple mechanisms combined
+        task = SendingTask('task5', 30, 60, 5, 0b1111,
+                          'idleslope', 12000000,
+                          'cqf_cycle_time', 800000,
+                          'tas_cycle_time', 2000000,
+                          'tas_window_time', 1000000,
+                          'is_express', False)
 
-        # ATS: (name, bcet, wcet, scheduling_parameter, flags, ats_cir, ats_cbs, ats_eir, ats_ebs, ats_scheduler_group)
-        task = SendingTask('task4', 25, 50, 4, 0b10000, 2000000, 10000, 500000, 5000, 1)
+        Method 3: Using a dictionary:
+        ------------------------------
+        # Pass all TSN parameters as a dictionary
+        tsn_params = {
+            'idleslope': 10000000,
+            'tas_cycle_time': 1000000,
+            'tas_window_time': 500000
+        }
+        task = SendingTask('task2', 15, 30, 2, 0b0011, tsn_params)
 
-        # CBS + TAS + CQF + Preemption: (name, bcet, wcet, scheduling_parameter, flags,
-        #                                idleslope, tas_cycle_time, tas_window_time, cqf_cycle_time, is_express)
-        task = SendingTask('task5', 30, 60, 5, 0b1111, 12000000, 2000000, 1000000, 800000, False)
+        Available parameter names:
+        ---------------------------
+        'idleslope'          - for CBS
+        'tas_cycle_time'     - for TAS
+        'tas_window_time'    - for TAS
+        'cqf_cycle_time'     - for CQF
+        'is_express'         - for preemption
+        'ats_cir'            - for ATS
+        'ats_cbs'            - for ATS
+        'ats_eir'            - for ATS
+        'ats_ebs'            - for ATS
+        'ats_scheduler_group' - for ATS
     """
 
     # # Flag bit positions for scheduling mechanism identification
@@ -1192,61 +1219,57 @@ class SendingTask(Task):
         self.ats_ebs = None           # Excess Burst Size
         self.ats_scheduler_group = None  # ATS scheduler group identifier
 
-        # # Process positional arguments
-        # # Syntax: (name, bcet, wcet, scheduling_parameter, scheduling_flags, [TSN params...])
-        # # TSN parameters are assigned based on which flags are set, in flag order
-        # # Parameters are assigned in flag bit order: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
+        # # Process positional arguments and keyword arguments
+        # # Basic parameters: (name, bcet, wcet, scheduling_parameter, [scheduling_flags])
+        # # After the basic parameters, TSN-related parameters can be passed in two ways:
+        # # 1. As key-value pairs in positional arguments: ('param_name', value, 'param_name2', value2, ...)
+        # # 2. As keyword arguments: param_name=value
+        # # 3. As a single dictionary: {'param_name': value, 'param_name2': value2, ...}
+
+        # # Map of TSN parameter names to their corresponding attributes
+        tsn_param_map = {
+            'idleslope': 'idleslope',
+            'tas_cycle_time': 'tas_cycle_time',
+            'tas_window_time': 'tas_window_time',
+            'cqf_cycle_time': 'cqf_cycle_time',
+            'is_express': 'is_express',
+            'ats_cir': 'ats_cir',
+            'ats_cbs': 'ats_cbs',
+            'ats_eir': 'ats_eir',
+            'ats_ebs': 'ats_ebs',
+            'ats_scheduler_group': 'ats_scheduler_group',
+        }
+
         if len(args) >= 4:
             self.bcet = args[0]
             self.wcet = args[1]
             self.scheduling_parameter = args[2]
             self.scheduling_flags = args[3]
 
-            # # Assign TSN parameters based on flags
-            # # Starting from args[4] onwards
-            param_index = 4
+            # # Process additional positional arguments starting from args[4]
+            # # Support flexible key-value pair format
+            idx = 4
+            while idx < len(args):
+                param = args[idx]
 
-            # # CBS parameter: idleslope (1 param)
-            if self.uses_cbs() and len(args) > param_index:
-                self.idleslope = args[param_index]
-                param_index += 1
-
-            # # TAS parameters: tas_cycle_time, tas_window_time (2 params)
-            if self.uses_tas():
-                if len(args) > param_index:
-                    self.tas_cycle_time = args[param_index]
-                    param_index += 1
-                if len(args) > param_index:
-                    self.tas_window_time = args[param_index]
-                    param_index += 1
-
-            # # CQF parameter: cqf_cycle_time (1 param)
-            if self.uses_cqf() and len(args) > param_index:
-                self.cqf_cycle_time = args[param_index]
-                param_index += 1
-
-            # # Preemption parameter: is_express (1 param)
-            if self.uses_preemption() and len(args) > param_index:
-                self.is_express = args[param_index]
-                param_index += 1
-
-            # # ATS parameters: ats_cir, ats_cbs, ats_eir, ats_ebs, ats_scheduler_group (5 params)
-            if self.uses_ats():
-                if len(args) > param_index:
-                    self.ats_cir = args[param_index]
-                    param_index += 1
-                if len(args) > param_index:
-                    self.ats_cbs = args[param_index]
-                    param_index += 1
-                if len(args) > param_index:
-                    self.ats_eir = args[param_index]
-                    param_index += 1
-                if len(args) > param_index:
-                    self.ats_ebs = args[param_index]
-                    param_index += 1
-                if len(args) > param_index:
-                    self.ats_scheduler_group = args[param_index]
-                    param_index += 1
+                # # If parameter is a string, treat the next argument as its value
+                if isinstance(param, str) and param in tsn_param_map:
+                    if idx + 1 < len(args):
+                        setattr(self, tsn_param_map[param], args[idx + 1])
+                        idx += 2
+                    else:
+                        logger.warning("TSN parameter '%s' provided but no value given" % param)
+                        idx += 1
+                # # If parameter is a dictionary, extract all key-value pairs
+                elif isinstance(param, dict):
+                    for key, value in param.items():
+                        if key in tsn_param_map:
+                            setattr(self, tsn_param_map[key], value)
+                    idx += 1
+                else:
+                    # # Unknown parameter type, skip
+                    logger.warning("Unexpected parameter at position %d: %s" % (idx, param))
+                    idx += 1
 
         # After all mandatory attributes have been initialized above, load
         # those set in kwargs (kwargs can override positional args)
