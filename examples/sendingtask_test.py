@@ -1,7 +1,7 @@
 """
-Test SendingTask class for TSN mechanisms
+Test TSN_SendingTask class for TSN mechanisms
 
-This example demonstrates the usage of SendingTask with various
+This example demonstrates the usage of TSN_SendingTask with various
 Time-Sensitive Networking (TSN) scheduling mechanisms.
 """
 
@@ -12,13 +12,13 @@ from pycpa import schedulers
 from pycpa import options
 
 def test_single_mechanism():
-    """Test SendingTask with single TSN mechanism"""
+    """Test TSN_SendingTask with single TSN mechanism"""
     print("\n" + "="*60)
     print("Test 1: Single Mechanism (CBS)")
     print("="*60)
 
     # Using keyword arguments
-    task1 = model.SendingTask('CBS_Task', 10, 20, 1, 0b0001, idleslope=5000000)
+    task1 = model.TSN_SendingTask('CBS_Task', 10, 20, 1, 0b0001, idleslope=5000000)
 
     print(f"Task name: {task1.name}")
     print(f"BCET: {task1.bcet}, WCET: {task1.wcet}")
@@ -29,13 +29,13 @@ def test_single_mechanism():
 
 
 def test_multiple_mechanisms():
-    """Test SendingTask with multiple TSN mechanisms"""
+    """Test TSN_SendingTask with multiple TSN mechanisms"""
     print("\n" + "="*60)
     print("Test 2: Multiple Mechanisms (CBS + TAS + CQF)")
     print("="*60)
 
     # Using keyword arguments - multiple mechanisms combined
-    task2 = model.SendingTask('Multi_Task',
+    task2 = model.TSN_SendingTask('Multi_Task',
                              bcet=15, wcet=30, scheduling_parameter=2,
                              scheduling_flags=0b0111,  # CBS(0)+TAS(1)+CQF(2)
                              idleslope=10000000,
@@ -53,13 +53,13 @@ def test_multiple_mechanisms():
 
 
 def test_all_mechanisms():
-    """Test SendingTask with all TSN mechanisms"""
+    """Test TSN_SendingTask with all TSN mechanisms"""
     print("\n" + "="*60)
     print("Test 3: All Mechanisms (CBS + TAS + CQF + Preempt + ATS)")
     print("="*60)
 
     # Using keyword arguments - all mechanisms
-    task3 = model.SendingTask('All_Mech_Task',
+    task3 = model.TSN_SendingTask('All_Mech_Task',
                              20, 40, 3,
                              0b11111,  # CBS+TAS+CQF+Preempt+ATS
                              idleslope=12000000,
@@ -88,13 +88,13 @@ def test_all_mechanisms():
 
 
 def test_key_value_pairs():
-    """Test SendingTask using key-value pairs in positional arguments"""
+    """Test TSN_SendingTask using key-value pairs in positional arguments"""
     print("\n" + "="*60)
     print("Test 4: Key-Value Pairs in Positional Arguments")
     print("="*60)
 
     # Using key-value pairs - order doesn't matter
-    task4 = model.SendingTask('KV_Pair_Task', 25, 50, 4, 0b0011,
+    task4 = model.TSN_SendingTask('KV_Pair_Task', 25, 50, 4, 0b0011,
                              'tas_window_time', 750000,      # TAS parameter
                              'idleslope', 15000000,          # CBS parameter
                              'tas_cycle_time', 1500000)      # TAS parameter
@@ -106,7 +106,7 @@ def test_key_value_pairs():
 
 
 def test_dictionary():
-    """Test SendingTask using dictionary for TSN parameters"""
+    """Test TSN_SendingTask using dictionary for TSN parameters"""
     print("\n" + "="*60)
     print("Test 5: Dictionary for TSN Parameters")
     print("="*60)
@@ -119,7 +119,7 @@ def test_dictionary():
         'cqf_cycle_time': 600000
     }
 
-    task5 = model.SendingTask('Dict_Task', 18, 35, 3, 0b0111, tsn_params)
+    task5 = model.TSN_SendingTask('Dict_Task', 18, 35, 3, 0b0111, tsn_params)
 
     print(f"Task name: {task5.name}")
     print(f"Uses CBS: {task5.uses_cbs()}, idleslope: {task5.idleslope}")
@@ -129,17 +129,17 @@ def test_dictionary():
 
 
 def test_with_system():
-    """Test SendingTask in a complete pycpa system"""
+    """Test TSN_SendingTask in a complete pycpa system"""
     print("\n" + "="*60)
-    print("Test 6: SendingTask in Complete System")
+    print("Test 6: TSN_SendingTask in Complete System")
     print("="*60)
 
     options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.Resource("R1", schedulers.SPPScheduler()))
 
-    # Create SendingTask with TAS mechanism
-    task6 = model.SendingTask('TAS_Task', wcet=8, bcet=4,
+    # Create TSN_SendingTask with TAS mechanism
+    task6 = model.TSN_SendingTask('TAS_Task', wcet=8, bcet=4,
                              scheduling_parameter=1,
                              scheduling_flags=0b0010,
                              tas_cycle_time=1000000,
@@ -166,7 +166,7 @@ def test_with_system():
     for r in sorted(s.resources, key=str):
         for t in sorted(r.tasks, key=str):
             print(f"  {t.name}: wcrt={results[t].wcrt}")
-            if isinstance(t, model.SendingTask):
+            if isinstance(t, model.TSN_SendingTask):
                 print(f"    TSN flags: {bin(t.scheduling_flags)}")
                 if t.uses_tas():
                     print(f"    TAS - cycle: {t.tas_cycle_time}, window: {t.tas_window_time}")
@@ -180,7 +180,7 @@ def test_validations():
 
     # Missing required parameter for CBS
     try:
-        task_error = model.SendingTask('Error_Task', 10, 20, 1, 0b0001)
+        task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0001)
         task_error.validate_parameters()
         print("ERROR: Should have raised ValueError!")
     except ValueError as e:
@@ -188,7 +188,7 @@ def test_validations():
 
     # Missing required parameters for TAS
     try:
-        task_error = model.SendingTask('Error_Task', 10, 20, 1, 0b0010,
+        task_error = model.TSN_SendingTask('Error_Task', 10, 20, 1, 0b0010,
                                       tas_cycle_time=1000000)
         task_error.validate_parameters()
         print("ERROR: Should have raised ValueError!")

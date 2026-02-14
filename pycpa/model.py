@@ -1034,8 +1034,8 @@ class Fork (Task):
         return self.mapping[dst_task]
 
 
-class SendingTask(Task):
-    """ A SendingTask defines tasks related to message transmission in real-time networks.
+class TSN_SendingTask(Task):
+    """ A TSN_SendingTask defines tasks related to message transmission in real-time networks (TSN).
 
     This class extends the Task model to support network-specific scheduling mechanisms
     for real-time Ethernet and similar time-sensitive networking (TSN) protocols.
@@ -1114,39 +1114,39 @@ class SendingTask(Task):
         Method 1: Using keyword arguments (recommended):
         ----------------------------------------------
         # CBS-only scheduling: flags = 0b0001
-        task = SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
+        task = TSN_SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
 
         # CBS + TAS scheduling: flags = 0b0011
-        task = SendingTask('task2', 15, 30, 2, 0b0011,
+        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011,
                           idleslope=10000000, tas_cycle_time=1000000, tas_window_time=500000)
 
         # CQF scheduling with preemption: flags = 0b1100
-        task = SendingTask('task3', 20, 40, 3, 0b1100,
+        task = TSN_SendingTask('task3', 20, 40, 3, 0b1100,
                           cqf_cycle_time=500000, is_express=True)
 
         # ATS scheduling: flags = 0b10000
-        task = SendingTask('task4', 25, 50, 4, 0b10000,
+        task = TSN_SendingTask('task4', 25, 50, 4, 0b10000,
                           ats_cir=2000000, ats_cbs=10000, ats_eir=500000,
                           ats_ebs=5000, ats_scheduler_group=1)
 
         Method 2: Using key-value pairs in positional arguments:
         -------------------------------------------------------
         # CBS-only: (name, bcet, wcet, scheduling_parameter, flags, 'param_name', value)
-        task = SendingTask('task1', 10, 20, 1, 0b0001, 'idleslope', 5000000)
+        task = TSN_SendingTask('task1', 10, 20, 1, 0b0001, 'idleslope', 5000000)
 
         # CBS + TAS: parameters can be in any order
-        task = SendingTask('task2', 15, 30, 2, 0b0011,
+        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011,
                           'tas_window_time', 500000,
                           'idleslope', 10000000,
                           'tas_cycle_time', 1000000)
 
         # CQF + Preemption
-        task = SendingTask('task3', 20, 40, 3, 0b1100,
+        task = TSN_SendingTask('task3', 20, 40, 3, 0b1100,
                           'is_express', True,
                           'cqf_cycle_time', 500000)
 
         # CBS + TAS + CQF + Preemption: multiple mechanisms combined
-        task = SendingTask('task5', 30, 60, 5, 0b1111,
+        task = TSN_SendingTask('task5', 30, 60, 5, 0b1111,
                           'idleslope', 12000000,
                           'cqf_cycle_time', 800000,
                           'tas_cycle_time', 2000000,
@@ -1161,7 +1161,7 @@ class SendingTask(Task):
             'tas_cycle_time': 1000000,
             'tas_window_time': 500000
         }
-        task = SendingTask('task2', 15, 30, 2, 0b0011, tsn_params)
+        task = TSN_SendingTask('task2', 15, 30, 2, 0b0011, tsn_params)
 
         Available parameter names:
         ---------------------------
