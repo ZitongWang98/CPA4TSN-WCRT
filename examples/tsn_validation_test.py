@@ -1,7 +1,10 @@
 """
-Test TSN Parameter Validation on Per-Resource Basis
+Test TSN Parameter Validation on Per-Resource and Task-Chain Basis
 
 This example tests the TSN scheduling parameter validation that ensures:
+
+Per-Resource Basis Constraints:
+===============================
 1. For tasks using TAS on the same resource:
    - All tas_cycle_time values must be the same
    - If scheduling_parameter (priority) is the same, tas_window_time must be the same
@@ -9,10 +12,17 @@ This example tests the TSN scheduling parameter validation that ensures:
    - If TAS is also used, cqf_cycle_time must be equal to or an even positive integer multiple of tas_cycle_time
    - Between CQF tasks, cqf_cycle_time must be equal or have an even positive integer multiple relationship
 
+Per-Task-Chain Basis Constraints:
+=================================
+3. For all TSN tasks in the same task chain (path):
+   - All TSN tasks must use the same mechanism (TAS or CQF)
+   - For tasks using TAS: tas_cycle_time, tas_window_time, and is_express (if preemption enabled) must be equal
+   - For tasks using CQF: cqf_cycle_time must be equal
+
 Test Cases Summary:
 ===================
 
-Valid Configuration Tests (7 tests):
+Valid Configuration Tests (9 tests):
 -------------------------------------
 - Test 1: Valid TAS Configuration - All TAS tasks have same cycle_time, same scheduling_parameter
           tasks have same window_time
@@ -24,8 +34,12 @@ Valid Configuration Tests (7 tests):
           (each is 2x the previous)
 - Test 10: No TSN Tasks - Resource with only regular Task objects (no TSN_SendingTask)
 - Test 12: Valid CQF - Equal to TAS Cycle - CQF cycle_time equals TAS cycle_time (1x is allowed)
+- Test 13: Valid Task Chain - All Tasks with Same TAS - Chain T1->T2->T3, all using TAS with identical
+          parameters
+- Test 16: Valid Task Chain - All Tasks with Same CQF - Chain T1->T2->T3, all using CQF with identical
+          parameters
 
-Invalid Configuration Tests (5 tests):
+Invalid Configuration Tests (7 tests):
 ---------------------------------------
 - Test 2: Invalid TAS - Different Cycle Times - TAS tasks with different tas_cycle_time values
           (1000000 vs 2000000)
@@ -35,6 +49,10 @@ Invalid Configuration Tests (5 tests):
 - Test 6: Invalid CQF - No Even Multiple Relation - CQF tasks: 2000000 and 3000000 (no even
           multiple relationship)
 - Test 11: Invalid CQF - Less Than TAS Cycle - CQF cycle_time (500000) < TAS cycle_time (1000000)
+- Test 14: Invalid Task Chain - TAS and CQF Mixed - Chain T1(TAS)->T2(CQF)->T3(TAS), different
+          mechanisms in same chain
+- Test 15: Invalid Task Chain - Different TAS Parameters - Chain with TAS tasks having different
+          tas_window_time values
 """
 
 import logging
@@ -484,6 +502,184 @@ def test_cqf_equal_to_tas_cycle():
         print(f"FAILED: {e}")
 
 
+def test_valid_chain_same_tas():
+    """Test valid task chain with all tasks using TAS with same parameters"""
+    print("\n" + "="*60)
+    print("Test 13: Valid Task Chain - All Tasks with Same TAS")
+    print("="*60)
+
+    options.init_pycpa()
+    s = model.System()
+    r13_1 = s.bind_resource(model.Resource("R13_1", schedulers.SPPScheduler()))
+    r13_2 = s.bind_resource(model.Resource("R13_2", schedulers.SPPScheduler()))
+
+    # Chain: t1 -> t2 -> t3, all using TAS with same parameters
+    t1 = model.TSN_SendingTask('T1', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r13_1.bind_task(t1)
+
+    t2 = model.TSN_SendingTask('T2', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r13_1.bind_task(t2)
+
+    t3 = model.TSN_SendingTask('T3', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r13_2.bind_task(t3)
+
+    # Connect tasks: t1 -> t2 -> t3
+    t1.link_dependent_task(t2)
+    t2.link_dependent_task(t3)
+
+    # Create a path (task chain)
+    path = model.Path("Path13", [t1, t2, t3])
+    s.bind_path(path)
+
+    t1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+    # Should NOT raise ValueError
+    try:
+        results = analysis.analyze_system(s)
+        print("SUCCESS: Analysis completed without errors!")
+        print("All TAS tasks in chain have same parameters (valid)")
+    except ValueError as e:
+        print(f"FAILED: {e}")
+
+
+def test_invalid_chain_mixed_mechanisms():
+    """Test invalid task chain with TAS and CQF tasks mixed"""
+    print("\n" + "="*60)
+    print("Test 14: Invalid Task Chain - TAS and CQF Mixed (should fail)")
+    print("="*60)
+
+    options.init_pycpa()
+    s = model.System()
+    r14_1 = s.bind_resource(model.Resource("R14_1", schedulers.SPPScheduler()))
+    r14_2 = s.bind_resource(model.Resource("R14_2", schedulers.SPPScheduler()))
+
+    # Chain: t1 (TAS) -> t2 (CQF) -> t3 (TAS) - different mechanisms!
+    t1 = model.TSN_SendingTask('T1', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r14_1.bind_task(t1)
+
+    t2 = model.TSN_SendingTask('T2', 1, 2, 1, 0b0100,
+                               cqf_cycle_time=1000000)
+    r14_1.bind_task(t2)
+
+    t3 = model.TSN_SendingTask('T3', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r14_2.bind_task(t3)
+
+    # Connect tasks: t1 -> t2 -> t3
+    t1.link_dependent_task(t2)
+    t2.link_dependent_task(t3)
+
+    # Create a path (task chain) - this should fail validation
+    path = model.Path("Path14", [t1, t2, t3])
+    s.bind_path(path)
+
+    t1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+    # Should raise ValueError
+    try:
+        results = analysis.analyze_system(s)
+        print("FAILED: Analysis should have raised ValueError!")
+    except ValueError as e:
+        print(f"SUCCESS: Expected error caught: {e}")
+
+
+def test_invalid_chain_different_tas_params():
+    """Test invalid task chain with TAS tasks having different parameters"""
+    print("\n" + "="*60)
+    print("Test 15: Invalid Task Chain - Different TAS Parameters (should fail)")
+    print("="*60)
+
+    options.init_pycpa()
+    s = model.System()
+    r15_1 = s.bind_resource(model.Resource("R15_1", schedulers.SPPScheduler()))
+    r15_2 = s.bind_resource(model.Resource("R15_2", schedulers.SPPScheduler()))
+
+    # Chain: t1 -> t2 -> t3, all using TAS but with different tas_window_time
+    t1 = model.TSN_SendingTask('T1', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r15_1.bind_task(t1)
+
+    t2 = model.TSN_SendingTask('T2', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=400000)  # Different!
+    r15_1.bind_task(t2)
+
+    t3 = model.TSN_SendingTask('T3', 1, 2, 1, 0b0010,
+                               tas_cycle_time=1000000,
+                               tas_window_time=500000)
+    r15_2.bind_task(t3)
+
+    # Connect tasks: t1 -> t2 -> t3
+    t1.link_dependent_task(t2)
+    t2.link_dependent_task(t3)
+
+    # Create a path (task chain) - this should fail validation
+    path = model.Path("Path15", [t1, t2, t3])
+    s.bind_path(path)
+
+    t1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+    # Should raise ValueError
+    try:
+        results = analysis.analyze_system(s)
+        print("FAILED: Analysis should have raised ValueError!")
+    except ValueError as e:
+        print(f"SUCCESS: Expected error caught: {e}")
+
+
+def test_valid_chain_same_cqf():
+    """Test valid task chain with all tasks using CQF with same parameters"""
+    print("\n" + "="*60)
+    print("Test 16: Valid Task Chain - All Tasks with Same CQF")
+    print("="*60)
+
+    options.init_pycpa()
+    s = model.System()
+    r16_1 = s.bind_resource(model.Resource("R16_1", schedulers.SPPScheduler()))
+    r16_2 = s.bind_resource(model.Resource("R16_2", schedulers.SPPScheduler()))
+
+    # Chain: t1 -> t2 -> t3, all using CQF with same parameters
+    t1 = model.TSN_SendingTask('T1', 1, 2, 1, 0b0100,
+                               cqf_cycle_time=2000000)
+    r16_1.bind_task(t1)
+
+    t2 = model.TSN_SendingTask('T2', 1, 2, 1, 0b0100,
+                               cqf_cycle_time=2000000)
+    r16_1.bind_task(t2)
+
+    t3 = model.TSN_SendingTask('T3', 1, 2, 1, 0b0100,
+                               cqf_cycle_time=2000000)
+    r16_2.bind_task(t3)
+
+    # Connect tasks: t1 -> t2 -> t3
+    t1.link_dependent_task(t2)
+    t2.link_dependent_task(t3)
+
+    # Create a path (task chain)
+    path = model.Path("Path16", [t1, t2, t3])
+    s.bind_path(path)
+
+    t1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+    # Should NOT raise ValueError
+    try:
+        results = analysis.analyze_system(s)
+        print("SUCCESS: Analysis completed without errors!")
+        print("All CQF tasks in chain have same parameters (valid)")
+    except ValueError as e:
+        print(f"FAILED: {e}")
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARNING)  # Reduce output noise
 
@@ -499,6 +695,8 @@ if __name__ == "__main__":
     test_cqf_mixed_valid_even_multiple()
     test_no_tsn_tasks()
     test_cqf_equal_to_tas_cycle()
+    test_valid_chain_same_tas()
+    test_valid_chain_same_cqf()
 
     # Invalid configurations (should raise ValueError)
     test_invalid_tas_different_cycle_times()
@@ -506,6 +704,8 @@ if __name__ == "__main__":
     test_invalid_cqf_not_even_multiple_of_tas()
     test_invalid_cqf_different_cycle_times()
     test_cqf_less_than_tas_cycle()
+    test_invalid_chain_mixed_mechanisms()
+    test_invalid_chain_different_tas_params()
 
     print("\n" + "#"*60)
     print("# All tests completed!")

@@ -875,18 +875,123 @@ def _check_load_constrains(constraints, task_results):
     return violations
 
 
+def _validate_tsn_chain_consistency(tasks_in_chain):
+    """ Validate TSN mechanism consistency within a task chain.
+
+    This function checks that within a task chain:
+    1. If any TSN task uses TAS, all TSN tasks in the chain must use TAS
+    2. If any TSN task uses CQF, all TSN tasks in the chain must use CQF
+    3. For tasks using the same mechanism, all TSN-related parameters must be equal:
+       - For TAS: tas_cycle_time, tas_window_time, and is_express (if preemption is used)
+       - For CQF: cqf_cycle_time
+
+    :param tasks_in_chain: List of tasks in the chain
+    :type tasks_in_chain: list
+    :raises ValueError: If TSN mechanism consistency constraint is violated
+    """
+    # Collect TSN_SendingTask tasks from the chain
+    tsn_tasks = [t for t in tasks_in_chain if getattr(t, 'is_tsn_sending_task', False)]
+
+    if not tsn_tasks:
+        return
+
+    # Check TAS consistency
+    tas_tasks = [t for t in tsn_tasks if t.uses_tas()]
+    if tas_tasks:
+        # All TSN tasks in the chain must use TAS
+        non_tas_tsn_tasks = [t for t in tsn_tasks if not t.uses_tas()]
+        if non_tas_tsn_tasks:
+            non_tas_mechanisms = []
+            for t in non_tas_tsn_tasks:
+                if t.uses_cqf():
+                    non_tas_mechanisms.append('CQF')
+                elif t.uses_cbs():
+                    non_tas_mechanisms.append('CBS')
+                elif t.uses_ats():
+                    non_tas_mechanisms.append('ATS')
+                else:
+                    non_tas_mechanisms.append('None')
+            raise ValueError(
+                "Inconsistent TSN mechanisms in task chain: "
+                "tasks %s use TAS but other tasks use different mechanisms: %s. "
+                "All TSN tasks in the same task chain must use the same mechanism." %
+                ([t.name for t in tas_tasks], ", ".join(set(non_tas_mechanisms))))
+
+        # Check TAS parameters are equal across all TAS tasks
+        reference_task = tas_tasks[0]
+        for t in tas_tasks[1:]:
+            # Check tas_cycle_time
+            if t.tas_cycle_time != reference_task.tas_cycle_time:
+                raise ValueError(
+                    "Inconsistent tas_cycle_time in task chain: task '%s' has %d, "
+                    "task '%s' has %d. All TAS tasks in the same chain must have the same tas_cycle_time." %
+                    (reference_task.name, reference_task.tas_cycle_time,
+                     t.name, t.tas_cycle_time))
+            # Check tas_window_time
+            if t.tas_window_time != reference_task.tas_window_time:
+                raise ValueError(
+                    "Inconsistent tas_window_time in task chain: task '%s' has %d, "
+                    "task '%s' has %d. All TAS tasks in the same chain must have the same tas_window_time." %
+                    (reference_task.name, reference_task.tas_window_time,
+                     t.name, t.tas_window_time))
+            # Check is_express if both use preemption
+            if t.uses_preemption() and reference_task.uses_preemption():
+                if t.is_express != reference_task.is_express:
+                    raise ValueError(
+                        "Inconsistent is_express in task chain: task '%s' has is_express=%s, "
+                        "task '%s' has is_express=%s. All TAS+Preemption tasks in the same chain must have the same is_express." %
+                        (reference_task.name, reference_task.is_express, t.name, t.is_express))
+
+    # Check CQF consistency
+    cqf_tasks = [t for t in tsn_tasks if t.uses_cqf()]
+    if cqf_tasks:
+        # All TSN tasks in the chain must use CQF
+        non_cqf_tsn_tasks = [t for t in tsn_tasks if not t.uses_cqf()]
+        if non_cqf_tsn_tasks:
+            non_cqf_mechanisms = []
+            for t in non_cqf_tsn_tasks:
+                if t.uses_tas():
+                    non_cqf_mechanisms.append('TAS')
+                elif t.uses_cbs():
+                    non_cqf_mechanisms.append('CBS')
+                elif t.uses_ats():
+                    non_cqf_mechanisms.append('ATS')
+                else:
+                    non_cqf_mechanisms.append('None')
+            raise ValueError(
+                "Inconsistent TSN mechanisms in task chain: "
+                "tasks %s use CQF but other tasks use different mechanisms: %s. "
+                "All TSN tasks in the same task chain must use the same mechanism." %
+                ([t.name for t in cqf_tasks], ", ".join(set(non_cqf_mechanisms))))
+
+        # Check CQF parameters are equal across all CQF tasks
+        reference_task = cqf_tasks[0]
+        for t in cqf_tasks[1:]:
+            # Check cqf_cycle_time
+            if t.cqf_cycle_time != reference_task.cqf_cycle_time:
+                raise ValueError(
+                    "Inconsistent cqf_cycle_time in task chain: task '%s' has %d, "
+                    "task '%s' has %d. All CQF tasks in the same chain must have the same cqf_cycle_time." %
+                    (reference_task.name, reference_task.cqf_cycle_time,
+                     t.name, t.cqf_cycle_time))
+
+
 def _validate_tsn_parameters(system):
     """ Validate TSN scheduling parameters for all TSN_SendingTask tasks.
 
-    This function checks the following constraints on a per-resource basis:
-    1. For tasks using TAS on the same resource:
-       - All tas_cycle_time values must be the same
-       - If scheduling_parameter (priority) is the same, tas_window_time must be the same
-    2. For tasks using CQF on the same resource:
-       - If TAS is also used on the resource, cqf_cycle_time must be an even positive integer
-         multiple (or equal) of tas_cycle_time
-       - Between tasks using CQF, their cqf_cycle_time values must be equal or have
-         an even positive integer multiple relationship
+    This function checks the following constraints:
+    1. Per-resource basis:
+       - For tasks using TAS on the same resource:
+         * All tas_cycle_time values must be the same
+         * If scheduling_parameter (priority) is the same, tas_window_time must be the same
+       - For tasks using CQF on the same resource:
+         * If TAS is also used on the resource, cqf_cycle_time must be an even positive integer
+           multiple (or equal) of tas_cycle_time
+         * Between tasks using CQF, their cqf_cycle_time values must be equal or have
+           an even positive integer multiple relationship
+    2. Per-task-chain basis:
+       - All TSN tasks in the same task chain must use the same mechanism (TAS or CQF)
+       - For tasks using the same mechanism, all TSN-related parameters must be equal
 
     :param system: The system to validate
     :type system: model.System
@@ -966,4 +1071,8 @@ def _validate_tsn_parameters(system):
                             "(cqf_cycle_time=%d) must have cqf_cycle_time values that are "
                             "equal or an even positive integer multiple of each other" %
                             (resource.name, t1.name, t1.cqf_cycle_time, t2.name, t2.cqf_cycle_time))
+
+    # Constraint 3: Per-task-chain basis - validate TSN mechanism consistency in each path
+    for path in system.paths:
+        _validate_tsn_chain_consistency(path.tasks)
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
