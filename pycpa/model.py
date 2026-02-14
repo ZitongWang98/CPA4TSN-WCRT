@@ -1034,6 +1034,76 @@ class Fork (Task):
         return self.mapping[dst_task]
 
 
+class SendingTask(Task):
+    """ A SendingTask defines tasks related to message transmission in real-time networks.
+
+    This class extends the Task model to support network-specific scheduling mechanisms
+    for real-time Ethernet and similar time-sensitive networking (TSN) protocols.
+
+    Constructor Parameters:
+    -----------------------
+    name : str
+        Task name/identifier (same as Task)
+
+    Input Parameters (first three, same as Task):
+    --------------------------------------------
+    bcet : int/float
+        Best-case execution time (same as Task)
+
+    wcet : int/float
+        Worst-case execution time (same as Task)
+
+    scheduling_parameter : int/float
+        Scheduling parameter (e.g., priority) (same as Task)
+
+    scheduling_flags : int (fourth parameter)
+        uint type data encoding scheduling mechanism flags:
+        - Bit 0 (LSB): Task stream scheduled by CBS (Credit-Based Shaper)
+        - Bit 1: Task stream scheduled by TAS (Time-Aware Shaper)
+        - Bit 2: Task stream scheduled by CQF (Cyclic Queuing and Forwarding)
+        - Bit 3: Task stream scheduled by ATS (Asynchronous Traffic Shaping)
+        - Other bits: Reserved for future use
+        Bit value: 1 = enabled/selected, 0 = disabled/not selected
+
+    Example usage:
+    --------------
+        # CBS-only scheduling: flags = 0b0001
+        task = SendingTask('task1', 10, 20, 1, 0b0001)
+
+        # CBS + TAS scheduling: flags = 0b0011
+        task = SendingTask('task2', 15, 30, 2, 0b0011)
+
+        # CQF scheduling: flags = 0b0100
+        task = SendingTask('task3', 20, 40, 3, 0b0100)
+    """
+
+    def __init__(self, name, *args, **kwargs):
+        """ CTOR """
+        # # Call Task CTOR
+        Task.__init__(self, name, *args, **kwargs)
+
+        # # Scheduling mechanism flags for network transmission
+        # # Stores the scheduling configuration for this sending task
+        # # Lower 4 bits: CBS(0), TAS(1), CQF(2), ATS(3)
+        self.scheduling_flags = 0
+
+        # compatability to the call semantics with 4 parameters:
+        # (name, bcet, wcet, scheduling_parameter, scheduling_flags)
+        if len(args) >= 4:
+            self.bcet = args[0]
+            self.wcet = args[1]
+            self.scheduling_parameter = args[2]
+            self.scheduling_flags = args[3]
+
+        # After all mandatory attributes have been initialized above, load
+        # those set in kwargs
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+        assert(self.bcet <= self.wcet)
+        assert(isinstance(self.scheduling_flags, int) and self.scheduling_flags >= 0)
+
+
 class Mutex(object):
     """ A mutually-exclusive shared Resource.
     Shared resources create timing interferences between tasks
