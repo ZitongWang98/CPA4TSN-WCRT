@@ -613,4 +613,166 @@ class TDMAScheduler(analysis.Scheduler):
                                       math.ceil(float(q * task.wcet) / task.scheduling_parameter) * (t_tdma - task.scheduling_parameter))
         return w
 
+class TASScheduler(analysis.Scheduler):
+    """ TAS (Time-Aware Shaper) Scheduler
+
+    TAS is defined in IEEE 802.1Qbv for Ethernet TSN networks.
+    It uses gate control lists (GCL) to transmit frames during defined time windows.
+
+    The analysis method is based on:
+    THIELE D, ERNST R, DIEMER J. Formal worst-case timing analysis of
+    Ethernet TSN's time-aware and peristaltic shapers[C]//2015 IEEE
+    Vehicular Networking Conference (VNC). Kyoto, Japan: IEEE, 2015: 251-258.
+
+    task.scheduling_parameter stores the TAS configuration parameters
+    """
+
+    def __init__(self, priority_cmp=prio_high_wins_equal_domination):
+        """ Initialize TAS scheduler with gate control list parameters
+        """
+        analysis.Scheduler.__init__(self)
+
+        # priority ordering
+        self.priority_cmp = priority_cmp
+
+        self.arrival_time_final = 0
+
+    def b_plus(self, task, q, details=None, **kwargs):
+        """ Return the maximum time required to process q activations under TAS scheduling
+
+        :param task: Task to analyze
+        :param q: Number of job activations
+        :param details: Dictionary for detailed analysis output
+        :param kwargs: Additional arguments
+        :return: Worst-case response time bound for q activations
+        """
+        assert(task.scheduling_parameter != None)
+        assert(task.wcet >= 0)
+
+        arrival_time_min = task.in_event_model.delta_min(q)
+        arrival_time_max = task.in_event_model.delta_min(q+1)
+        arrival_time_set = []
+        response_time = 0
+        response_time_final = 0
+        worst_case_queuing_time_final = 0
+
+        for ti in task.get_resource_interferers():
+            assert (ti.scheduling_parameter != None)
+            assert (ti.resource == task.resource)
+            if ti.scheduling_parameter == task.scheduling_parameter:  # same priority
+                for n in range(1, 1000):
+                    if (ti.in_event_model.delta_min(n) >= arrival_time_min) and (ti.in_event_model.delta_min(n) < arrival_time_max):
+                        arrival_time_set.append(ti.in_event_model.delta_min(n))
+
+        if arrival_time_set == []:
+            arrival_time_set = [arrival_time_min]
+
+        for arrival_time in arrival_time_set:  # Iterating through each arrival time in aiq
+            # ST flow - handled by TAS scheduler
+            resource = task.resource
+            _is_tsn = getattr(resource, 'is_tsn_resource', False)
+            _task_uses_tas = _is_tsn and resource.priority_uses_tas(task.scheduling_parameter)
+
+            if _task_uses_tas:
+                worst_case_queuing_time = 0
+                same_priority_interference = 0
+                same_priority_blocking = 0
+                gate_closed_blocking = 0
+                gate_closed_duration = 0
+
+                # same-priority blocking
+                for ti in task.get_resource_interferers():
+                    assert (ti.scheduling_parameter != None)
+                    assert (ti.resource == task.resource)
+                    if (ti.scheduling_parameter == task.scheduling_parameter):
+                        same_priority_interference += ti.wcet * ti.in_event_model.eta_plus_closed(arrival_time)
+                same_priority_blocking = (q - 1) * task.wcet + same_priority_interference
+
+                tas_cycle = resource.effective_tas_cycle_time(task.scheduling_parameter)
+                tas_window = resource.effective_tas_window_time(task.scheduling_parameter)
+
+                # gate-closed time for once
+                gate_closed_duration = tas_cycle - tas_window + task.wcet
+
+                # gate-closed blocking
+                gate_closed_blocking = math.ceil((same_priority_blocking + task.wcet) / (tas_window - task.wcet)) * gate_closed_duration
+                
+                worst_case_queuing_time = same_priority_blocking + gate_closed_blocking
+            # NST flow - not handled by TAS scheduler
+            else:
+                lower_priority_blocking = 0
+                same_priority_interference = 0
+                same_priority_blocking = 0
+                guard_band = 0
+                gate_closed_blocking = 0
+                gate_closed_duration = 0
+                tas_cycle_time = 0
+
+                # lower-priority blocking
+                for ti in task.get_resource_interferers():
+                    assert (ti.scheduling_parameter != None)
+                    assert (ti.resource == task.resource)
+                    if (ti.scheduling_parameter < task.scheduling_parameter):
+                        if lower_priority_blocking < ti.wcet:
+                            lower_priority_blocking = ti.wcet
+
+                # same-priority blocking
+                for ti in task.get_resource_interferers():
+                    assert (ti.scheduling_parameter != None)
+                    assert (ti.resource == task.resource)
+                    if (ti.scheduling_parameter == task.scheduling_parameter):
+                        same_priority_interference += ti.wcet * ti.in_event_model.eta_plus_closed(arrival_time)
+                    same_priority_blocking = (q - 1)*task.wcet + same_priority_interference
+                
+                # calculate the guard band
+                for ti in task.get_resource_interferers():
+                    assert (ti.scheduling_parameter != None)
+                    assert (ti.resource == task.resource)
+                    if not _task_uses_tas:
+                        if guard_band < ti.wcet:
+                            guard_band = ti.wcet
+
+                # gate-closed time for once — sum window times over TAS priorities on this resource
+                if _is_tsn and resource.priority_mechanism_map is not None:
+                    for key, mech in resource.priority_mechanism_map.items():
+                        if mech == 'TAS' and not isinstance(key, tuple):
+                            gate_closed_duration += resource.effective_tas_window_time(key)
+                    tas_cycle_time = resource.effective_tas_cycle_time()
+
+                # gate-closed blocking
+                gate_closed_blocking = math.ceil((same_priority_blocking + task.wcet) / (tas_cycle_time - gate_closed_duration - guard_band)) * (gate_closed_duration + guard_band)
+
+                worst_case_queuing_time = lower_priority_blocking + same_priority_blocking + gate_closed_blocking
+                print(f"worst_case_queuing_time:{tas_cycle_time}")
+                # Fix-point intergration
+                while True:
+                    high_priority_blocking = 0
+
+                    # higher-priority blocking
+                    for ti in task.get_resource_interferers():
+                        assert (ti.scheduling_parameter != None)
+                        assert (ti.resource == task.resource)
+                        ti_uses_tas = _is_tsn and resource.priority_uses_tas(ti.scheduling_parameter)
+                        if (ti.scheduling_parameter > task.scheduling_parameter) and not ti_uses_tas:
+                            high_priority_blocking += ti.wcet * ti.in_event_model.eta_plus(worst_case_queuing_time)
+                    
+                    worst_case_queuing_time_new = lower_priority_blocking + same_priority_blocking + gate_closed_blocking + high_priority_blocking
+                    if worst_case_queuing_time == worst_case_queuing_time_new:
+                        assert (worst_case_queuing_time >= (q - 1) * task.wcet)
+                        break
+                    worst_case_queuing_time = worst_case_queuing_time_new
+            
+            response_time = worst_case_queuing_time + task.wcet - arrival_time
+
+            if response_time > response_time_final:
+                response_time_final = response_time
+                worst_case_queuing_time_final = worst_case_queuing_time
+                self.arrival_time_final = arrival_time
+        return worst_case_queuing_time_final
+
+    def response_time(self, task, q, w, details=None, **kwargs):
+        return w + task.wcet - self.arrival_time_final
+
+
+
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

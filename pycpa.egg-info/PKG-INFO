@@ -1,0 +1,22 @@
+Metadata-Version: 2.1
+Name: pycpa
+Version: 1.2
+Summary: pyCPA - a python implementation of compositional performance analysis
+Home-page: https://github.com/IDA-TUBS/pycpa
+Author: Jonas Diemer, Philip Axer, Daniel Thiele, Johannes Schlatow
+Author-email: {axer,diemer,thiele,schlatow}@ida.ing.tu-bs.de
+License: MIT
+License-File: LICENSE
+Requires-Dist: argparse
+Provides-Extra: plot
+Requires-Dist: matplotlib; extra == "plot"
+Provides-Extra: trace
+Requires-Dist: numpy; extra == "trace"
+Provides-Extra: topology-plot
+Requires-Dist: pygraphviz; extra == "topology-plot"
+Provides-Extra: gantt-charts
+Requires-Dist: simpy; extra == "gantt-charts"
+Provides-Extra: xls
+Requires-Dist: xlrd; extra == "xls"
+Provides-Extra: doc
+Requires-Dist: sphinx; extra == "doc"
