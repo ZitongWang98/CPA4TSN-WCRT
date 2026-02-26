@@ -306,7 +306,7 @@ class Scheduler(object):
                 logger.debug('setting results %d', w)
                 task_results[task].busy_times.append(w)
 
-            current_response = w - task.in_event_model.delta_min(q)
+            current_response = self.response_time(task, q, w, task_results=task_results)
             # logger.debug("%s window(q=%f):%d, response: %d" % (task.name, q,
             # w, current_response))
 
@@ -394,6 +394,10 @@ class Scheduler(object):
         max_backlog = max(b)
         task_results[task].max_backlog = max_backlog
         return max_backlog
+    
+    def response_time(self, task, q, details=None, **kwargs):
+        """ Maximum Response Time for q activations of a task."""
+        return self.b_plus(task, q) - task.in_event_model.delta_min(q)
 
 
 def analyze_task(task, task_results):
@@ -875,12 +879,179 @@ def _check_load_constrains(constraints, task_results):
     return violations
 
 
+def _validate_priority_mechanism_map(resource):
+    """Validate a TSN_Resource's priority_mechanism_map and associated parameters.
+
+    Checks performed:
+    5.1 - Map self-constraints (valid mechanisms, CQF keys are 2-tuples, no duplicate priorities)
+    5.2 - Parameter completeness per mechanism
+    5.3 - TSN parameter constraints (cycle time relationships)
+    5.4 - Task-resource mapping consistency
+
+    :param resource: A TSN_Resource with a priority_mechanism_map to validate.
+    :type resource: model.TSN_Resource
+    :raises ValueError: If any constraint is violated.
+    """
+    pmap = resource.priority_mechanism_map
+    if pmap is None:
+        return
+
+    valid_mechanisms = getattr(resource, 'VALID_MECHANISMS', {'TAS', 'CQF', 'CBS', 'ATS', None})
+
+    # ---- 5.1 Map self-constraints ----
+    seen_priorities = {}
+    for key, mechanism in pmap.items():
+        if mechanism not in valid_mechanisms:
+            raise ValueError(
+                "Resource '%s': invalid mechanism '%s' in priority_mechanism_map. "
+                "Valid values are: %s" % (resource.name, mechanism, valid_mechanisms))
+
+        if isinstance(key, tuple):
+            if mechanism != 'CQF':
+                raise ValueError(
+                    "Resource '%s': tuple key %s is only allowed for 'CQF' mechanism, "
+                    "but is mapped to '%s'" % (resource.name, key, mechanism))
+            if len(key) != 2:
+                raise ValueError(
+                    "Resource '%s': CQF key %s must be a tuple of exactly 2 priorities" %
+                    (resource.name, key))
+            for p in key:
+                if p in seen_priorities:
+                    raise ValueError(
+                        "Resource '%s': priority %d appears in multiple map entries "
+                        "(in %s and %s)" %
+                        (resource.name, p, seen_priorities[p], key))
+                seen_priorities[p] = key
+        else:
+            if mechanism == 'CQF':
+                raise ValueError(
+                    "Resource '%s': CQF mechanism requires a tuple key of 2 priorities, "
+                    "but got single key %s" % (resource.name, key))
+            if key in seen_priorities:
+                raise ValueError(
+                    "Resource '%s': priority %d appears in multiple map entries "
+                    "(in %s and %s)" %
+                    (resource.name, key, seen_priorities[key], key))
+            seen_priorities[key] = key
+
+    # ---- 5.2 Parameter completeness ----
+    tas_priorities = [k for k, v in pmap.items() if v == 'TAS' and not isinstance(k, tuple)]
+    cqf_pairs = [k for k, v in pmap.items() if v == 'CQF' and isinstance(k, tuple)]
+    cbs_priorities = [k for k, v in pmap.items() if v == 'CBS' and not isinstance(k, tuple)]
+    ats_priorities = [k for k, v in pmap.items() if v == 'ATS' and not isinstance(k, tuple)]
+
+    if tas_priorities:
+        if resource.tas_cycle_time is None:
+            raise ValueError(
+                "Resource '%s': priorities %s are mapped to TAS but tas_cycle_time is not set" %
+                (resource.name, tas_priorities))
+        wt_map = resource.tas_window_time_by_priority
+        for p in tas_priorities:
+            if wt_map is None or p not in wt_map:
+                raise ValueError(
+                    "Resource '%s': priority %d is mapped to TAS but has no entry in "
+                    "tas_window_time_by_priority" % (resource.name, p))
+
+    if cqf_pairs:
+        ct_map = resource.cqf_cycle_time_by_pair
+        for pair in cqf_pairs:
+            if ct_map is None or pair not in ct_map:
+                raise ValueError(
+                    "Resource '%s': CQF pair %s has no entry in cqf_cycle_time_by_pair" %
+                    (resource.name, pair))
+
+    if cbs_priorities:
+        is_map = resource.idleslope_by_priority
+        for p in cbs_priorities:
+            if is_map is None or p not in is_map:
+                raise ValueError(
+                    "Resource '%s': priority %d is mapped to CBS but has no entry in "
+                    "idleslope_by_priority" % (resource.name, p))
+
+    if ats_priorities:
+        ap_map = resource.ats_params_by_priority
+        required_ats_keys = {'cir', 'cbs', 'eir', 'ebs', 'scheduler_group'}
+        for p in ats_priorities:
+            if ap_map is None or p not in ap_map:
+                raise ValueError(
+                    "Resource '%s': priority %d is mapped to ATS but has no entry in "
+                    "ats_params_by_priority" % (resource.name, p))
+            params = ap_map[p]
+            if not isinstance(params, dict):
+                raise ValueError(
+                    "Resource '%s': ats_params_by_priority[%d] must be a dict, got %s" %
+                    (resource.name, p, type(params).__name__))
+            missing = required_ats_keys - set(params.keys())
+            if missing:
+                raise ValueError(
+                    "Resource '%s': ats_params_by_priority[%d] is missing keys: %s" %
+                    (resource.name, p, missing))
+
+    # ---- 5.3 TSN parameter constraints ----
+    if cqf_pairs and tas_priorities:
+        tas_ct = resource.tas_cycle_time
+        ct_map = resource.cqf_cycle_time_by_pair
+        for pair in cqf_pairs:
+            cqf_ct = ct_map[pair]
+            ratio = cqf_ct / tas_ct
+            if ratio < 1 or ratio % 1 != 0 or (int(ratio) != 1 and int(ratio) % 2 != 0):
+                raise ValueError(
+                    "Resource '%s': CQF pair %s has cqf_cycle_time=%s which is not equal to "
+                    "or an even positive integer multiple of tas_cycle_time=%s" %
+                    (resource.name, pair, cqf_ct, tas_ct))
+
+    if len(cqf_pairs) > 1:
+        ct_map = resource.cqf_cycle_time_by_pair
+        cqf_cts = [(pair, ct_map[pair]) for pair in cqf_pairs]
+        for i in range(len(cqf_cts)):
+            for j in range(i + 1, len(cqf_cts)):
+                p1, c1 = cqf_cts[i]
+                p2, c2 = cqf_cts[j]
+                if c1 == c2:
+                    continue
+                ratio1 = c1 / c2
+                ratio2 = c2 / c1
+                valid = False
+                for ratio in [ratio1, ratio2]:
+                    if ratio > 1 and ratio % 1 == 0 and int(ratio) % 2 == 0:
+                        valid = True
+                        break
+                if not valid:
+                    raise ValueError(
+                        "Resource '%s': CQF pairs %s (cycle_time=%s) and %s (cycle_time=%s) "
+                        "must have cycle times that are equal or an even positive integer "
+                        "multiple of each other" % (resource.name, p1, c1, p2, c2))
+
+    # ---- 5.4 Task-resource mapping consistency ----
+    all_mapped_prios = set()
+    for k in pmap.keys():
+        if isinstance(k, tuple):
+            all_mapped_prios.update(k)
+        else:
+            all_mapped_prios.add(k)
+    for task in resource.tasks:
+        prio = getattr(task, 'scheduling_parameter', None)
+        if prio is not None and prio not in all_mapped_prios:
+            raise ValueError(
+                "Resource '%s': task '%s' has scheduling_parameter=%d "
+                "which is not in the priority_mechanism_map" %
+                (resource.name, task.name, prio))
+
+
+def _get_task_mechanism(task):
+    """Return the TSN mechanism for a task based on its resource, or None."""
+    res = task.resource
+    if res is None or not getattr(res, 'is_tsn_resource', False):
+        return None
+    return res.get_mechanism_for_priority(task.scheduling_parameter)
+
+
 def _validate_tsn_chain_consistency(tasks_in_chain):
     """ Validate TSN mechanism consistency within a task chain.
 
     This function checks that within a task chain:
-    1. If any TSN task uses TAS, all TSN tasks in the chain must use TAS
-    2. If any TSN task uses CQF, all TSN tasks in the chain must use CQF
+    1. If any task on a TSN_Resource uses TAS, all TSN tasks in the chain must use TAS
+    2. If any task on a TSN_Resource uses CQF, all TSN tasks in the chain must use CQF
     3. For tasks using the same mechanism, all TSN-related parameters must be equal:
        - For TAS: tas_cycle_time, tas_window_time, and is_express (if preemption is used)
        - For CQF: cqf_cycle_time
@@ -889,97 +1060,85 @@ def _validate_tsn_chain_consistency(tasks_in_chain):
     :type tasks_in_chain: list
     :raises ValueError: If TSN mechanism consistency constraint is violated
     """
-    # Collect TSN_SendingTask tasks from the chain
-    tsn_tasks = [t for t in tasks_in_chain if getattr(t, 'is_tsn_sending_task', False)]
+    tsn_tasks = [t for t in tasks_in_chain
+                 if t.resource is not None and getattr(t.resource, 'is_tsn_resource', False)]
 
     if not tsn_tasks:
         return
 
-    # Check TAS consistency
-    tas_tasks = [t for t in tsn_tasks if t.uses_tas()]
+    tas_tasks = [t for t in tsn_tasks if t.resource.priority_uses_tas(t.scheduling_parameter)]
     if tas_tasks:
-        # All TSN tasks in the chain must use TAS
-        non_tas_tsn_tasks = [t for t in tsn_tasks if not t.uses_tas()]
+        non_tas_tsn_tasks = [t for t in tsn_tasks if not t.resource.priority_uses_tas(t.scheduling_parameter)]
         if non_tas_tsn_tasks:
             non_tas_mechanisms = []
             for t in non_tas_tsn_tasks:
-                if t.uses_cqf():
-                    non_tas_mechanisms.append('CQF')
-                elif t.uses_cbs():
-                    non_tas_mechanisms.append('CBS')
-                elif t.uses_ats():
-                    non_tas_mechanisms.append('ATS')
-                else:
-                    non_tas_mechanisms.append('None')
+                mech = _get_task_mechanism(t)
+                non_tas_mechanisms.append(mech if mech else 'None')
             raise ValueError(
                 "Inconsistent TSN mechanisms in task chain: "
                 "tasks %s use TAS but other tasks use different mechanisms: %s. "
                 "All TSN tasks in the same task chain must use the same mechanism." %
                 ([t.name for t in tas_tasks], ", ".join(set(non_tas_mechanisms))))
 
-        # Check TAS parameters are equal across all TAS tasks
-        reference_task = tas_tasks[0]
+        ref = tas_tasks[0]
+        ref_res = ref.resource
         for t in tas_tasks[1:]:
-            # Check tas_cycle_time
-            if t.tas_cycle_time != reference_task.tas_cycle_time:
+            t_res = t.resource
+            ref_cycle = ref_res.effective_tas_cycle_time(ref.scheduling_parameter)
+            cur_cycle = t_res.effective_tas_cycle_time(t.scheduling_parameter)
+            if cur_cycle != ref_cycle:
                 raise ValueError(
-                    "Inconsistent tas_cycle_time in task chain: task '%s' has %d, "
-                    "task '%s' has %d. All TAS tasks in the same chain must have the same tas_cycle_time." %
-                    (reference_task.name, reference_task.tas_cycle_time,
-                     t.name, t.tas_cycle_time))
-            # Check tas_window_time
-            if t.tas_window_time != reference_task.tas_window_time:
+                    "Inconsistent tas_cycle_time in task chain: task '%s' has %s, "
+                    "task '%s' has %s. All TAS tasks in the same chain must have the same tas_cycle_time." %
+                    (ref.name, ref_cycle, t.name, cur_cycle))
+            ref_window = ref_res.effective_tas_window_time(ref.scheduling_parameter)
+            cur_window = t_res.effective_tas_window_time(t.scheduling_parameter)
+            if cur_window != ref_window:
                 raise ValueError(
-                    "Inconsistent tas_window_time in task chain: task '%s' has %d, "
-                    "task '%s' has %d. All TAS tasks in the same chain must have the same tas_window_time." %
-                    (reference_task.name, reference_task.tas_window_time,
-                     t.name, t.tas_window_time))
-            # Check is_express if both use preemption
-            if t.uses_preemption() and reference_task.uses_preemption():
-                if t.is_express != reference_task.is_express:
+                    "Inconsistent tas_window_time in task chain: task '%s' has %s, "
+                    "task '%s' has %s. All TAS tasks in the same chain must have the same tas_window_time." %
+                    (ref.name, ref_window, t.name, cur_window))
+            if (t_res.priority_uses_preemption(t.scheduling_parameter) and
+                    ref_res.priority_uses_preemption(ref.scheduling_parameter)):
+                ref_express = ref_res.effective_is_express(ref.scheduling_parameter)
+                cur_express = t_res.effective_is_express(t.scheduling_parameter)
+                if cur_express != ref_express:
                     raise ValueError(
                         "Inconsistent is_express in task chain: task '%s' has is_express=%s, "
                         "task '%s' has is_express=%s. All TAS+Preemption tasks in the same chain must have the same is_express." %
-                        (reference_task.name, reference_task.is_express, t.name, t.is_express))
+                        (ref.name, ref_express, t.name, cur_express))
 
-    # Check CQF consistency
-    cqf_tasks = [t for t in tsn_tasks if t.uses_cqf()]
+    cqf_tasks = [t for t in tsn_tasks if t.resource.priority_uses_cqf(t.scheduling_parameter)]
     if cqf_tasks:
-        # All TSN tasks in the chain must use CQF
-        non_cqf_tsn_tasks = [t for t in tsn_tasks if not t.uses_cqf()]
+        non_cqf_tsn_tasks = [t for t in tsn_tasks if not t.resource.priority_uses_cqf(t.scheduling_parameter)]
         if non_cqf_tsn_tasks:
             non_cqf_mechanisms = []
             for t in non_cqf_tsn_tasks:
-                if t.uses_tas():
-                    non_cqf_mechanisms.append('TAS')
-                elif t.uses_cbs():
-                    non_cqf_mechanisms.append('CBS')
-                elif t.uses_ats():
-                    non_cqf_mechanisms.append('ATS')
-                else:
-                    non_cqf_mechanisms.append('None')
+                mech = _get_task_mechanism(t)
+                non_cqf_mechanisms.append(mech if mech else 'None')
             raise ValueError(
                 "Inconsistent TSN mechanisms in task chain: "
                 "tasks %s use CQF but other tasks use different mechanisms: %s. "
                 "All TSN tasks in the same task chain must use the same mechanism." %
                 ([t.name for t in cqf_tasks], ", ".join(set(non_cqf_mechanisms))))
 
-        # Check CQF parameters are equal across all CQF tasks
-        reference_task = cqf_tasks[0]
+        ref = cqf_tasks[0]
         for t in cqf_tasks[1:]:
-            # Check cqf_cycle_time
-            if t.cqf_cycle_time != reference_task.cqf_cycle_time:
+            ref_cqf = ref.resource.effective_cqf_cycle_time(ref.scheduling_parameter)
+            cur_cqf = t.resource.effective_cqf_cycle_time(t.scheduling_parameter)
+            if cur_cqf != ref_cqf:
                 raise ValueError(
-                    "Inconsistent cqf_cycle_time in task chain: task '%s' has %d, "
-                    "task '%s' has %d. All CQF tasks in the same chain must have the same cqf_cycle_time." %
-                    (reference_task.name, reference_task.cqf_cycle_time,
-                     t.name, t.cqf_cycle_time))
+                    "Inconsistent cqf_cycle_time in task chain: task '%s' has %s, "
+                    "task '%s' has %s. All CQF tasks in the same chain must have the same cqf_cycle_time." %
+                    (ref.name, ref_cqf, t.name, cur_cqf))
 
 
 def _validate_tsn_parameters(system):
-    """ Validate TSN scheduling parameters for all TSN_SendingTask tasks.
+    """ Validate TSN scheduling parameters for all tasks on TSN_Resource instances.
 
     This function checks the following constraints:
+    0. Per-resource: validate priority_mechanism_map (if present) via
+       _validate_priority_mechanism_map()
     1. Per-resource basis:
        - For tasks using TAS on the same resource:
          * All tas_cycle_time values must be the same
@@ -998,81 +1157,95 @@ def _validate_tsn_parameters(system):
     :raises ValueError: If any TSN parameter constraint is violated
     """
     for resource in system.resources:
-        # Collect TSN_SendingTask tasks on this resource
-        tsn_tasks = [t for t in resource.tasks if getattr(t, 'is_tsn_sending_task', False)]
+        if getattr(resource, 'priority_mechanism_map', None) is not None:
+            _validate_priority_mechanism_map(resource)
 
-        if not tsn_tasks:
+    for resource in system.resources:
+        if not getattr(resource, 'is_tsn_resource', False):
             continue
 
-        # Separate tasks by their scheduling mechanism
-        tas_tasks = [t for t in tsn_tasks if t.uses_tas()]
-        cqf_tasks = [t for t in tsn_tasks if t.uses_cqf()]
+        tas_tasks = [t for t in resource.tasks
+                     if resource.priority_uses_tas(t.scheduling_parameter)]
+        cqf_tasks = [t for t in resource.tasks
+                     if resource.priority_uses_cqf(t.scheduling_parameter)]
 
-        # Constraint 1: For tasks using TAS on the same resource
         if tas_tasks:
-            # All tas_cycle_time must be the same
-            tas_cycle_times = set(t.tas_cycle_time for t in tas_tasks)
+            tas_cycle_times = set()
+            for t in tas_tasks:
+                cycle = resource.effective_tas_cycle_time(t.scheduling_parameter)
+                if cycle is None:
+                    raise ValueError(
+                        "On resource '%s', task '%s' uses TAS but has no tas_cycle_time "
+                        "configured on its resource" % (resource.name, t.name))
+                tas_cycle_times.add(cycle)
             if len(tas_cycle_times) > 1:
                 raise ValueError(
                     "On resource '%s', all tasks using TAS must have the same tas_cycle_time. "
                     "Found different values: %s" % (resource.name, tas_cycle_times))
 
-            # If scheduling_parameter is the same, tas_window_time must be the same
-            # Group tasks by scheduling_parameter and check tas_window_time within each group
             tasks_by_sched_param = {}
             for t in tas_tasks:
-                sched_param = getattr(t, 'scheduling_parameter', None)
+                sched_param = t.scheduling_parameter
                 if sched_param not in tasks_by_sched_param:
                     tasks_by_sched_param[sched_param] = []
                 tasks_by_sched_param[sched_param].append(t)
 
             for sched_param, tasks in tasks_by_sched_param.items():
-                tas_window_times = set(t.tas_window_time for t in tasks)
+                tas_window_times = set()
+                for t in tasks:
+                    win = resource.effective_tas_window_time(t.scheduling_parameter)
+                    if win is None:
+                        raise ValueError(
+                            "On resource '%s', task '%s' uses TAS but has no tas_window_time "
+                            "configured on its resource" % (resource.name, t.name))
+                    tas_window_times.add(win)
                 if len(tas_window_times) > 1:
                     raise ValueError(
                         "On resource '%s', tasks using TAS with scheduling_parameter=%s must have "
                         "the same tas_window_time. Found different values: %s" %
                         (resource.name, sched_param, tas_window_times))
 
-        # Constraint 2: For tasks using CQF on the same resource
         if cqf_tasks:
-            # Check if TAS is also used on this resource
             if tas_tasks:
-                tas_cycle_time = tas_tasks[0].tas_cycle_time
-                # Each cqf_cycle_time must be equal to tas_cycle_time or an even positive integer multiple
+                tas_cycle_time = resource.effective_tas_cycle_time(tas_tasks[0].scheduling_parameter)
                 for t in cqf_tasks:
-                    ratio = t.cqf_cycle_time / tas_cycle_time
-                    # Check if ratio is 1 (equal) OR an even positive integer multiple
+                    cqf_cycle = resource.effective_cqf_cycle_time(t.scheduling_parameter)
+                    if cqf_cycle is None:
+                        raise ValueError(
+                            "On resource '%s', task '%s' uses CQF but has no cqf_cycle_time "
+                            "configured on its resource" % (resource.name, t.name))
+                    ratio = cqf_cycle / tas_cycle_time
                     if ratio < 1 or ratio % 1 != 0 or (int(ratio) != 1 and int(ratio) % 2 != 0):
                         raise ValueError(
-                            "On resource '%s', task '%s' uses CQF with cqf_cycle_time=%d, which "
-                            "is not equal to or an even positive integer multiple of tas_cycle_time=%d" %
-                            (resource.name, t.name, t.cqf_cycle_time, tas_cycle_time))
+                            "On resource '%s', task '%s' uses CQF with cqf_cycle_time=%s, which "
+                            "is not equal to or an even positive integer multiple of tas_cycle_time=%s" %
+                            (resource.name, t.name, cqf_cycle, tas_cycle_time))
 
-            # Check relationship between cqf_cycle_times
             for i in range(len(cqf_tasks)):
                 for j in range(i + 1, len(cqf_tasks)):
                     t1, t2 = cqf_tasks[i], cqf_tasks[j]
-                    ratio1 = t1.cqf_cycle_time / t2.cqf_cycle_time
-                    ratio2 = t2.cqf_cycle_time / t1.cqf_cycle_time
-                    # Check if they are equal OR one is an even positive integer multiple of the other
+                    c1 = resource.effective_cqf_cycle_time(t1.scheduling_parameter)
+                    c2 = resource.effective_cqf_cycle_time(t2.scheduling_parameter)
+                    if c1 is None or c2 is None:
+                        raise ValueError(
+                            "On resource '%s', CQF tasks '%s' or '%s' missing cqf_cycle_time "
+                            "configuration on resource" % (resource.name, t1.name, t2.name))
                     valid = False
-                    # Check if they are equal (ratio == 1)
-                    if t1.cqf_cycle_time == t2.cqf_cycle_time:
+                    if c1 == c2:
                         valid = True
-                    # Otherwise check even multiple relationship
+                    ratio1 = c1 / c2
+                    ratio2 = c2 / c1
                     for ratio in [ratio1, ratio2]:
                         if ratio > 1 and ratio % 1 == 0 and int(ratio) % 2 == 0:
                             valid = True
                             break
                     if not valid:
                         raise ValueError(
-                            "On resource '%s', CQF tasks '%s' (cqf_cycle_time=%d) and '%s' "
-                            "(cqf_cycle_time=%d) must have cqf_cycle_time values that are "
+                            "On resource '%s', CQF tasks '%s' (cqf_cycle_time=%s) and '%s' "
+                            "(cqf_cycle_time=%s) must have cqf_cycle_time values that are "
                             "equal or an even positive integer multiple of each other" %
-                            (resource.name, t1.name, t1.cqf_cycle_time, t2.name, t2.cqf_cycle_time))
+                            (resource.name, t1.name, c1, t2.name, c2))
 
-    # Constraint 3: Per-task-chain basis - validate TSN mechanism consistency in each path
     for path in system.paths:
         _validate_tsn_chain_consistency(path.tasks)
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4

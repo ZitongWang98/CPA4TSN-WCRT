@@ -1034,337 +1034,340 @@ class Fork (Task):
         return self.mapping[dst_task]
 
 
-class TSN_SendingTask(Task):
-    """ A TSN_SendingTask defines tasks related to message transmission in real-time networks (TSN).
+class TSN_Resource(Resource):
+    """ A TSN_Resource extends Resource with TSN (Time-Sensitive Networking) port-level parameters.
 
-    This class extends the Task model to support network-specific scheduling mechanisms
-    for real-time Ethernet and similar time-sensitive networking (TSN) protocols.
+    In real TSN networks, scheduling parameters like TAS gate control and CQF cycle
+    are configured per device port (i.e. per resource), not per individual flow/task.
 
     Constructor Parameters:
     -----------------------
     name : str
-        Task name/identifier (same as Task)
+        Resource name/identifier (same as Resource)
 
-    Input Parameters (first three, same as Task):
-    --------------------------------------------
-    bcet : int/float
-        Best-case execution time (same as Task)
+    scheduler : object
+        Scheduler for this resource (same as Resource)
 
-    wcet : int/float
-        Worst-case execution time (same as Task)
+    Priority-Mechanism Mapping (optional):
+    --------------------------------------
+    priority_mechanism_map : dict
+        Maps priorities to TSN scheduling mechanisms on this port.
+        - Single-priority mechanisms (TAS, CBS, ATS): use int key
+        - CQF: use tuple of exactly 2 ints as key (a pair of priority queues)
+        - Value: 'TAS', 'CQF', 'CBS', 'ATS', or None (no mechanism)
+        A task's TSN mechanism is determined by looking up its scheduling_parameter
+        (priority) in this mapping.
 
-    scheduling_parameter : int/float
-        Scheduling parameter (e.g., priority) (same as Task)
+        Example::
 
-    scheduling_flags : int (fourth parameter)
-        uint type data encoding scheduling mechanism flags:
-        - Bit 0 (LSB): Task stream scheduled by CBS (Credit-Based Shaper)
-        - Bit 1: Task stream scheduled by TAS (Time-Aware Shaper)
-        - Bit 2: Task stream scheduled by CQF (Cyclic Queuing and Forwarding)
-        - Bit 3: Task stream uses frame preemption mechanism
-        - Bit 4: Task stream scheduled by ATS (Asynchronous Traffic Shaping)
-        - Other bits: Reserved for future use
-        Bit value: 1 = enabled/selected, 0 = disabled/not selected
+            priority_mechanism_map = {
+                7: 'TAS',
+                6: 'TAS',
+                (5, 4): 'CQF',
+                (3, 2): 'CQF',
+                1: 'CBS',
+                0: None,
+            }
 
-    Scheduling Mechanism Compatibility Constraints (when used together):
-    --------------------------------------------------------------------
-    When multiple TSN mechanisms are combined on the same task:
-    1. TAS can ONLY be combined with Preemption
-       - When TAS and Preemption are used together, is_express defaults to True (express/fast traffic)
-    2. CQF, CBS, and ATS can ONLY be combined with Preemption
-       - The preemption attribute (is_express) is not constrained in these combinations
+    TSN Port-Level Parameters (optional):
+    --------------------------------------
+    TAS (Time-Aware Shaper):
+        tas_cycle_time : int/float
+            The cycle time (period) of the TAS Gate Control List (GCL) on this port.
+            Shared by all TAS priorities on this resource.
+        tas_window_time : int/float
+            Default gate open window duration for TAS on this port.
+            Used when no per-priority mapping is provided.
+        tas_window_time_by_priority : dict
+            Per-priority mapping of TAS gate window durations.
+            Keys are scheduling_parameter (priority) values, values are window durations.
+            Example: {7: 100, 6: 200}
 
-    Note: Each mechanism (CBS, TAS, CQF, ATS, Preemption) can be used independently.
+    CBS (Credit-Based Shaper):
+        idleslope : int/float
+            Default idleSlope parameter in bits per second.
+        idleslope_by_priority : dict
+            Per-priority idleSlope mapping. Example: {1: 5000000}
 
-    TSN Mechanism Parameters (optional, depends on flags):
-    ------------------------------------------------------
-    idleslope : int/float
-        Required if CBS flag (bit 0) is set.
-        The idleSlope parameter in bits per second for CBS credit-based shaper.
+    CQF (Cyclic Queuing and Forwarding):
+        cqf_cycle_time : int/float
+            Default cycle time (rotate period) for CQF queues.
+        cqf_cycle_time_by_pair : dict
+            Per-CQF-pair cycle time mapping. Keys are tuples matching those in
+            priority_mechanism_map. Example: {(5, 4): 500, (3, 2): 1000}
 
-    tas_cycle_time : int/float
-        Required if TAS flag (bit 1) is set.
-        The cycle time (period) of the TAS Gate Control List (GCL).
+    Frame Preemption:
+        is_express : bool
+            Default preemption classification for frames on this port.
+        is_express_by_priority : dict
+            Per-priority preemption classification. Example: {7: True, 1: False}
 
-    tas_window_time : int/float
-        Required if TAS flag (bit 1) is set.
-        The duration for which the TAS gate window is open within each cycle.
-
-    cqf_cycle_time : int/float
-        Required if CQF flag (bit 2) is set.
-        The cycle time (rotate period) for CQF queues.
-
-    is_express : bool/int
-        Required if preemption flag (bit 3) is set.
-        Flag indicating if this frame is an express (high-speed) frame.
-        True/1 = express frame, False/0 = preemptable frame.
-
-    ats_cir : int/float
-        Required if ATS flag (bit 4) is set.
-        Committed Information Rate for ATS dual-speed dual-bucket leaky bucket.
-
-    ats_cbs : int/float
-        Required if ATS flag (bit 4) is set.
-        Committed Burst Size for ATS dual-speed dual-bucket leaky bucket.
-
-    ats_eir : int/float
-        Required if ATS flag (bit 4) is set.
-        Excess Information Rate for ATS dual-speed dual-bucket leaky bucket.
-
-    ats_ebs : int/float
-        Required if ATS flag (bit 4) is set.
-        Excess Burst Size for ATS dual-speed dual-bucket leaky bucket.
-
-    ats_scheduler_group : int
-        Required if ATS flag (bit 4) is set.
-        The scheduler group identifier for this ATS flow.
+    ATS (Asynchronous Traffic Shaping):
+        ats_cir / ats_cbs / ats_eir / ats_ebs / ats_scheduler_group :
+            Default ATS parameters for this port.
+        ats_params_by_priority : dict
+            Per-priority ATS parameter mapping. Each value is a dict with keys:
+            'cir', 'cbs', 'eir', 'ebs', 'scheduler_group'.
+            Example: {4: {'cir': 2000000, 'cbs': 10000, 'eir': 500000,
+                          'ebs': 5000, 'scheduler_group': 1}}
 
     Example usage:
     --------------
-        Method 1: Using keyword arguments (recommended):
-        ----------------------------------------------
-        # Single mechanism - CBS only: flags = 0b0001
-        task = TSN_SendingTask('task1', 10, 20, 1, 0b0001, idleslope=5000000)
+        # Full priority-mechanism mapping with per-priority parameters
+        r = TSN_Resource("Switch_Port1", schedulers.TASScheduler(),
+            priority_mechanism_map={
+                7: 'TAS',
+                6: 'TAS',
+                (5, 4): 'CQF',
+                1: 'CBS',
+                0: None,
+            },
+            tas_cycle_time=1000,
+            tas_window_time_by_priority={7: 100, 6: 200},
+            cqf_cycle_time_by_pair={(5, 4): 500},
+            idleslope_by_priority={1: 5000000},
+        )
 
-        # Single mechanism - TAS only: flags = 0b0010
-        task = TSN_SendingTask('task2', 15, 30, 2, 0b0010,
-                          tas_cycle_time=1000000, tas_window_time=500000)
+        # Use plain Task — TSN behavior is derived from the resource
+        t1 = Task('Flow_P7', 1, 12, 7)
+        r.bind_task(t1)
+        r.priority_uses_tas(7)  # True — derived from resource map
+        r.effective_tas_window_time(7)  # 100
 
-        # Single mechanism - CQF only: flags = 0b0100
-        task = TSN_SendingTask('task3', 20, 40, 3, 0b0100,
-                          cqf_cycle_time=500000)
+        # Simple TAS-enabled resource
+        r = TSN_Resource("Switch_Port2", schedulers.TASScheduler(),
+                         tas_cycle_time=1000,
+                         tas_window_time_by_priority={7: 100, 6: 200})
 
-        # Single mechanism - ATS only: flags = 0b10000
-        task = TSN_SendingTask('task4', 25, 50, 4, 0b10000,
-                          ats_cir=2000000, ats_cbs=10000, ats_eir=500000,
-                          ats_ebs=5000, ats_scheduler_group=1)
-
-        # TAS + Preemption (valid combo): flags = 0b1010
-        # is_express defaults to True for TAS + Preemption
-        task = TSN_SendingTask('task5', 30, 60, 5, 0b1010,
-                          tas_cycle_time=1000000, tas_window_time=500000)
-
-        # CQF + Preemption (valid combo): flags = 0b1100
-        # is_express can be True or False, no constraint
-        task = TSN_SendingTask('task6', 35, 70, 6, 0b1100,
-                          cqf_cycle_time=800000, is_express=False)
-
-        # CBS + Preemption (valid combo): flags = 0b1001
-        task = TSN_SendingTask('task7', 40, 80, 7, 0b1001,
-                          idleslope=12000000, is_express=True)
-
-        Method 2: Using key-value pairs in positional arguments:
-        -------------------------------------------------------
-        # TAS + Preemption: flags = 0b1010
-        task = TSN_SendingTask('task9', 25, 50, 4, 0b1010,
-                          'tas_cycle_time', 1000000,
-                          'tas_window_time', 500000)
-
-        # CQF + Preemption: flags = 0b1100
-        task = TSN_SendingTask('task10', 20, 40, 3, 0b1100,
-                          'cqf_cycle_time', 500000,
-                          'is_express', True)
-
-        Method 3: Using a dictionary:
-        ------------------------------
-        # Pass all TSN parameters as a dictionary
-        tsn_params = {
-            'tas_cycle_time': 1000000,
-            'tas_window_time': 500000
-        }
-        task = TSN_SendingTask('task11', 15, 30, 2, 0b1010, tsn_params)
-
-        Available parameter names:
-        ---------------------------
-        'idleslope'          - for CBS
-        'tas_cycle_time'     - for TAS
-        'tas_window_time'    - for TAS
-        'cqf_cycle_time'     - for CQF
-        'is_express'         - for preemption
-        'ats_cir'            - for ATS
-        'ats_cbs'            - for ATS
-        'ats_eir'            - for ATS
-        'ats_ebs'            - for ATS
-        'ats_scheduler_group' - for ATS
+        # CQF-enabled resource
+        r = TSN_Resource("Switch_Port3", schedulers.SPPScheduler(),
+                         cqf_cycle_time=500000)
     """
 
-    # # Class identifier flag to distinguish TSN_SendingTask from other Task types
-    is_tsn_sending_task = True
+    is_tsn_resource = True
 
-    # # Flag bit positions for scheduling mechanism identification
-    FLAG_CBS = 0        # Bit 0: Credit-Based Shaper
-    FLAG_TAS = 1        # Bit 1: Time-Aware Shaper
-    FLAG_CQF = 2        # Bit 2: Cyclic Queuing and Forwarding
-    FLAG_PREEMPT = 3    # Bit 3: Frame Preemption
-    FLAG_ATS = 4        # Bit 4: Asynchronous Traffic Shaping
+    # Valid mechanism names in priority_mechanism_map
+    VALID_MECHANISMS = {'TAS', 'CQF', 'CBS', 'ATS', None}
 
-    def __init__(self, name, *args, **kwargs):
+    # Mechanism name to FLAG bit mapping
+    MECHANISM_TO_FLAG = {
+        'TAS': 1 << 1,   # FLAG_TAS
+        'CQF': 1 << 2,   # FLAG_CQF
+        'CBS': 1 << 0,   # FLAG_CBS
+        'ATS': 1 << 4,   # FLAG_ATS
+        None: 0,
+    }
+
+    def __init__(self, name=None, scheduler=None, **kwargs):
         """ CTOR """
-        # # Call Task CTOR
-        Task.__init__(self, name, *args, **kwargs)
+        Resource.__init__(self, name, scheduler)
 
-        # # Scheduling mechanism flags for network transmission
-        # # Stores the scheduling configuration for this sending task
-        # # Bit positions: CBS(0), TAS(1), CQF(2), PREEMPT(3), ATS(4)
-        self.scheduling_flags = 0
+        # Priority-mechanism mapping
+        self.priority_mechanism_map = None
 
-        # # CBS (Credit-Based Shaper) parameters
-        # # Required when FLAG_CBS is set
+        # TAS parameters
+        self.tas_cycle_time = None
+        self.tas_window_time = None
+        self.tas_window_time_by_priority = None
+
+        # CBS parameters
         self.idleslope = None
+        self.idleslope_by_priority = None
 
-        # # TAS (Time-Aware Shaper) parameters
-        # # Required when FLAG_TAS is set
-        self.tas_cycle_time = None    # GCL cycle time
-        self.tas_window_time = None   # Gate open window duration
+        # CQF parameters
+        self.cqf_cycle_time = None
+        self.cqf_cycle_time_by_pair = None
 
-        # # CQF (Cyclic Queuing and Forwarding) parameters
-        # # Required when FLAG_CQF is set
-        self.cqf_cycle_time = None    # Queue rotate cycle time
+        # Frame Preemption parameters
+        self.is_express = None
+        self.is_express_by_priority = None
 
-        # # Frame Preemption parameters
-        # # Required when FLAG_PREEMPT is set
-        self.is_express = None        # True for express frame, False for preemptable frame
+        # ATS parameters
+        self.ats_cir = None
+        self.ats_cbs = None
+        self.ats_eir = None
+        self.ats_ebs = None
+        self.ats_scheduler_group = None
+        self.ats_params_by_priority = None
 
-        # # ATS (Asynchronous Traffic Shaping) parameters
-        # # Required when FLAG_ATS is set - dual-speed dual-bucket leaky bucket
-        self.ats_cir = None           # Committed Information Rate
-        self.ats_cbs = None           # Committed Burst Size
-        self.ats_eir = None           # Excess Information Rate
-        self.ats_ebs = None           # Excess Burst Size
-        self.ats_scheduler_group = None  # ATS scheduler group identifier
-
-        # # Process positional arguments and keyword arguments
-        # # Basic parameters: (name, bcet, wcet, scheduling_parameter, [scheduling_flags])
-        # # After the basic parameters, TSN-related parameters can be passed in two ways:
-        # # 1. As key-value pairs in positional arguments: ('param_name', value, 'param_name2', value2, ...)
-        # # 2. As keyword arguments: param_name=value
-        # # 3. As a single dictionary: {'param_name': value, 'param_name2': value2, ...}
-
-        # # Map of TSN parameter names to their corresponding attributes
-        tsn_param_map = {
-            'idleslope': 'idleslope',
-            'tas_cycle_time': 'tas_cycle_time',
-            'tas_window_time': 'tas_window_time',
-            'cqf_cycle_time': 'cqf_cycle_time',
-            'is_express': 'is_express',
-            'ats_cir': 'ats_cir',
-            'ats_cbs': 'ats_cbs',
-            'ats_eir': 'ats_eir',
-            'ats_ebs': 'ats_ebs',
-            'ats_scheduler_group': 'ats_scheduler_group',
-        }
-
-        if len(args) >= 4:
-            self.bcet = args[0]
-            self.wcet = args[1]
-            self.scheduling_parameter = args[2]
-            self.scheduling_flags = args[3]
-
-            # # Process additional positional arguments starting from args[4]
-            # # Support flexible key-value pair format
-            idx = 4
-            while idx < len(args):
-                param = args[idx]
-
-                # # If parameter is a string, treat the next argument as its value
-                if isinstance(param, str) and param in tsn_param_map:
-                    if idx + 1 < len(args):
-                        setattr(self, tsn_param_map[param], args[idx + 1])
-                        idx += 2
-                    else:
-                        logger.warning("TSN parameter '%s' provided but no value given" % param)
-                        idx += 1
-                # # If parameter is a dictionary, extract all key-value pairs
-                elif isinstance(param, dict):
-                    for key, value in param.items():
-                        if key in tsn_param_map:
-                            setattr(self, tsn_param_map[key], value)
-                    idx += 1
-                else:
-                    # # Unknown parameter type, skip
-                    logger.warning("Unexpected parameter at position %d: %s" % (idx, param))
-                    idx += 1
-
-        # After all mandatory attributes have been initialized above, load
-        # those set in kwargs (kwargs can override positional args)
         for key in kwargs:
             setattr(self, key, kwargs[key])
 
-        assert(self.bcet <= self.wcet)
-        assert(isinstance(self.scheduling_flags, int) and self.scheduling_flags >= 0)
+    def get_mechanism_for_priority(self, priority):
+        """Look up the TSN mechanism assigned to a given priority.
 
-    def uses_cbs(self):
-        """ Check if this task uses CBS scheduling """
-        return (self.scheduling_flags & (1 << self.FLAG_CBS)) != 0
+        :param priority: The scheduling_parameter (priority) to look up.
+        :returns: Mechanism name string ('TAS', 'CQF', 'CBS', 'ATS', None),
+                  or None if priority is not found in the map.
+        """
+        if self.priority_mechanism_map is None:
+            return None
+        for key, mechanism in self.priority_mechanism_map.items():
+            if isinstance(key, tuple):
+                if priority in key:
+                    return mechanism
+            elif key == priority:
+                return mechanism
+        return None
 
-    def uses_tas(self):
-        """ Check if this task uses TAS scheduling """
-        return (self.scheduling_flags & (1 << self.FLAG_TAS)) != 0
+    def get_cqf_pair_for_priority(self, priority):
+        """Find the CQF pair tuple that contains a given priority.
 
-    def uses_cqf(self):
-        """ Check if this task uses CQF scheduling """
-        return (self.scheduling_flags & (1 << self.FLAG_CQF)) != 0
+        :param priority: The scheduling_parameter (priority) to look up.
+        :returns: The CQF pair tuple, or None if priority is not part of any CQF pair.
+        """
+        if self.priority_mechanism_map is None:
+            return None
+        for key, mechanism in self.priority_mechanism_map.items():
+            if isinstance(key, tuple) and mechanism == 'CQF' and priority in key:
+                return key
+        return None
 
-    def uses_preemption(self):
-        """ Check if this task uses frame preemption """
-        return (self.scheduling_flags & (1 << self.FLAG_PREEMPT)) != 0
+    # ------------------------------------------------------------------
+    # Mechanism queries for a given priority
+    # ------------------------------------------------------------------
 
-    def uses_ats(self):
-        """ Check if this task uses ATS scheduling """
-        return (self.scheduling_flags & (1 << self.FLAG_ATS)) != 0
+    def priority_uses_cbs(self, priority):
+        """Check if the given priority uses CBS scheduling on this resource."""
+        return self.get_mechanism_for_priority(priority) == 'CBS'
 
-    def validate_parameters(self):
-        """ Validate that required parameters are set based on flags """
-        # # Validate required parameters for each enabled mechanism
-        if self.uses_cbs() and self.idleslope is None:
-            raise ValueError("CBS flag is set but idleslope is not defined")
-        if self.uses_tas() and (self.tas_cycle_time is None or self.tas_window_time is None):
-            raise ValueError("TAS flag is set but tas_cycle_time or tas_window_time is not defined")
-        if self.uses_cqf() and self.cqf_cycle_time is None:
-            raise ValueError("CQF flag is set but cqf_cycle_time is not defined")
-        if self.uses_ats():
-            if None in [self.ats_cir, self.ats_cbs, self.ats_eir, self.ats_ebs, self.ats_scheduler_group]:
-                raise ValueError("ATS flag is set but ats_cir, ats_cbs, ats_eir, ats_ebs "
-                               "or ats_scheduler_group is not defined")
+    def priority_uses_tas(self, priority):
+        """Check if the given priority uses TAS scheduling on this resource."""
+        return self.get_mechanism_for_priority(priority) == 'TAS'
 
-        # # Validate mechanism combination constraints
-        # # Count how many mechanisms are enabled (excluding Preemption)
-        mechanism_count = 0
-        if self.uses_cbs():
-            mechanism_count += 1
-        if self.uses_tas():
-            mechanism_count += 1
-        if self.uses_cqf():
-            mechanism_count += 1
-        if self.uses_ats():
-            mechanism_count += 1
+    def priority_uses_cqf(self, priority):
+        """Check if the given priority uses CQF scheduling on this resource."""
+        return self.get_mechanism_for_priority(priority) == 'CQF'
 
-        # # Only validate combination constraints when multiple mechanisms are used
-        # # Single mechanism usage is always allowed
-        if mechanism_count > 2:
-            raise ValueError("The number of combined mechanisms exceeds the limit")
-        elif mechanism_count == 2:
-            # # When combining mechanisms, Preemption is required
-            if not self.uses_preemption():
-                raise ValueError("When combining multiple TSN mechanisms (CBS, TAS, CQF, ATS), "
-                               "Preemption must also be enabled")
+    def priority_uses_ats(self, priority):
+        """Check if the given priority uses ATS scheduling on this resource."""
+        return self.get_mechanism_for_priority(priority) == 'ATS'
 
-            # # TAS + Preemption: default is_express to True if not set
-            if self.uses_tas() and self.is_express is None:
-                self.is_express = True
+    def priority_uses_preemption(self, priority):
+        """Check if the given priority uses frame preemption on this resource."""
+        if self.is_express_by_priority is not None and priority in self.is_express_by_priority:
+            return True
+        return self.is_express is not None
 
-        # # TAS can only be combined with Preemption (not with CBS/CQF/ATS unless Preemption is also set)
-        if self.uses_tas() and (mechanism_count >= 2) and not self.uses_preemption():
-            raise ValueError("TAS can only be combined with Preemption")
+    # ------------------------------------------------------------------
+    # TSN parameter accessors for a given priority
+    # ------------------------------------------------------------------
 
-        # # CQF/CBS/ATS can only be combined with Preemption
-        if self.uses_cqf() and (mechanism_count >= 2) and not self.uses_preemption():
-            raise ValueError("CQF can only be combined with Preemption")
-        if self.uses_cbs() and (mechanism_count >= 2) and not self.uses_preemption():
-            raise ValueError("CBS can only be combined with Preemption")
-        if self.uses_ats() and (mechanism_count >= 2) and not self.uses_preemption():
-            raise ValueError("ATS can only be combined with Preemption")
+    def effective_tas_cycle_time(self, priority=None):
+        """Return TAS cycle time for this resource (shared across all TAS priorities)."""
+        return self.tas_cycle_time
 
+    def effective_tas_window_time(self, priority):
+        """Return TAS window time for the given priority.
+
+        Lookup order:
+        1. tas_window_time_by_priority[priority]
+        2. tas_window_time (default)
+        """
+        if self.tas_window_time_by_priority is not None and priority in self.tas_window_time_by_priority:
+            return self.tas_window_time_by_priority[priority]
+        return self.tas_window_time
+
+    def effective_cqf_cycle_time(self, priority):
+        """Return CQF cycle time for the given priority.
+
+        Lookup order:
+        1. cqf_cycle_time_by_pair[pair] (CQF pair containing this priority)
+        2. cqf_cycle_time (default)
+        """
+        if self.cqf_cycle_time_by_pair is not None:
+            pair = self.get_cqf_pair_for_priority(priority)
+            if pair is not None and pair in self.cqf_cycle_time_by_pair:
+                return self.cqf_cycle_time_by_pair[pair]
+        return self.cqf_cycle_time
+
+    def effective_idleslope(self, priority):
+        """Return CBS idleSlope for the given priority.
+
+        Lookup order:
+        1. idleslope_by_priority[priority]
+        2. idleslope (default)
+        """
+        if self.idleslope_by_priority is not None and priority in self.idleslope_by_priority:
+            return self.idleslope_by_priority[priority]
+        return self.idleslope
+
+    def effective_is_express(self, priority):
+        """Return preemption is_express flag for the given priority.
+
+        Lookup order:
+        1. is_express_by_priority[priority]
+        2. is_express (default)
+        """
+        if self.is_express_by_priority is not None and priority in self.is_express_by_priority:
+            return self.is_express_by_priority[priority]
+        return self.is_express
+
+    def _ats_param(self, priority, param_key):
+        """Look up a single ATS parameter for the given priority.
+
+        Lookup order:
+        1. ats_params_by_priority[priority][param_key]
+        2. ats_<param_key> (default)
+        """
+        if self.ats_params_by_priority is not None and priority in self.ats_params_by_priority:
+            params = self.ats_params_by_priority[priority]
+            if isinstance(params, dict) and param_key in params:
+                return params[param_key]
+        return getattr(self, 'ats_' + param_key, None)
+
+    def effective_ats_cir(self, priority):
+        """Return ATS Committed Information Rate for the given priority."""
+        return self._ats_param(priority, 'cir')
+
+    def effective_ats_cbs(self, priority):
+        """Return ATS Committed Burst Size for the given priority."""
+        return self._ats_param(priority, 'cbs')
+
+    def effective_ats_eir(self, priority):
+        """Return ATS Excess Information Rate for the given priority."""
+        return self._ats_param(priority, 'eir')
+
+    def effective_ats_ebs(self, priority):
+        """Return ATS Excess Burst Size for the given priority."""
+        return self._ats_param(priority, 'ebs')
+
+    def effective_ats_scheduler_group(self, priority):
+        """Return ATS scheduler group for the given priority."""
+        return self._ats_param(priority, 'scheduler_group')
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def validate_task_parameters(self, task):
+        """Validate that required TSN parameters are available for the given task.
+
+        :param task: A task bound to this resource.
+        :raises ValueError: If required parameters are missing.
+        """
+        prio = task.scheduling_parameter
+        if self.priority_uses_cbs(prio) and self.effective_idleslope(prio) is None:
+            raise ValueError(
+                "Task '%s' uses CBS but idleslope is not configured on its resource" % task.name)
+        if self.priority_uses_tas(prio):
+            if self.effective_tas_cycle_time(prio) is None or self.effective_tas_window_time(prio) is None:
+                raise ValueError(
+                    "Task '%s' uses TAS but tas_cycle_time or tas_window_time "
+                    "is not configured on its resource" % task.name)
+        if self.priority_uses_cqf(prio):
+            if self.effective_cqf_cycle_time(prio) is None:
+                raise ValueError(
+                    "Task '%s' uses CQF but cqf_cycle_time is not configured on its resource"
+                    % task.name)
+        if self.priority_uses_ats(prio):
+            ats_vals = [self.effective_ats_cir(prio), self.effective_ats_cbs(prio),
+                        self.effective_ats_eir(prio), self.effective_ats_ebs(prio),
+                        self.effective_ats_scheduler_group(prio)]
+            if None in ats_vals:
+                raise ValueError(
+                    "Task '%s' uses ATS but some ATS parameters are not configured "
+                    "on its resource" % task.name)
         return True
 
 
