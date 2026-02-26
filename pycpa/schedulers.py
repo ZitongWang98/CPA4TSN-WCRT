@@ -743,8 +743,7 @@ class TASScheduler(analysis.Scheduler):
                 gate_closed_blocking = math.ceil((same_priority_blocking + task.wcet) / (tas_cycle_time - gate_closed_duration - guard_band)) * (gate_closed_duration + guard_band)
 
                 worst_case_queuing_time = lower_priority_blocking + same_priority_blocking + gate_closed_blocking
-                print(f"worst_case_queuing_time:{tas_cycle_time}")
-                # Fix-point intergration
+                # Fix-point iteration
                 while True:
                     high_priority_blocking = 0
 
