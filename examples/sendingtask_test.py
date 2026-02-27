@@ -1,21 +1,21 @@
 """
-Test TSN mechanism configuration via TSN_Resource with plain Task objects
+Test TSN Mechanism Configuration via TSN_Resource with Plain Task Objects
 
-All TSN mechanism configuration is done on the TSN_Resource via priority_mechanism_map
-and per-priority parameter dictionaries. A plain Task's scheduling_parameter (priority)
-determines which mechanism it uses by looking up the resource's map.
+This test demonstrates how TSN mechanism configuration is done on the TSN_Resource
+using priority_mechanism_map and per-priority parameter dictionaries. A plain Task's
+scheduling_parameter (priority) determines which mechanism it uses by looking up the
+resource's map.
 
 Test Cases Summary:
 ===================
-
-Test 1: Single Mechanism (CBS) via resource map
-Test 2: Single Mechanism (CQF) via resource map
-Test 3: TAS mechanism via resource map
-Test 4: CBS with preemption via resource map
-Test 5: Plain Task in a complete pycpa system with analysis
-Test 6: Parameter validation — missing CBS idleslope on resource
-Test 7: Parameter validation — missing TAS window time on resource
-Test 8: CQF alone — single mechanism is valid
+1. Single Mechanism (CBS) via resource map
+2. Single Mechanism (CQF) via resource map
+3. TAS mechanism via resource map
+4. CBS with preemption via resource map
+5. Plain Task in a complete pycpa system with analysis
+6. Parameter validation — missing CBS idleslope on resource
+7. Parameter validation — missing TAS window time on resource
+8. CQF alone — single mechanism is valid
 """
 
 import logging
@@ -25,8 +25,17 @@ from pycpa import schedulers
 from pycpa import options
 
 
+# ========================================
+# 1. Define common parameters (if any)
+# ========================================
+
+
+# ========================================
+# 2. Analysis/test scenario functions
+# ========================================
+
 def test_single_cbs():
-    """Test plain Task with CBS mechanism configured on resource"""
+    """Test plain Task with CBS mechanism configured on resource."""
     print("\n" + "="*60)
     print("Test 1: Single Mechanism (CBS) via Resource Map")
     print("="*60)
@@ -50,7 +59,7 @@ def test_single_cbs():
 
 
 def test_single_cqf():
-    """Test plain Task with CQF mechanism configured on resource"""
+    """Test plain Task with CQF mechanism configured on resource."""
     print("\n" + "="*60)
     print("Test 2: Single Mechanism (CQF) via Resource Map")
     print("="*60)
@@ -74,7 +83,7 @@ def test_single_cqf():
 
 
 def test_tas_mechanism():
-    """Test TAS mechanism via resource map"""
+    """Test TAS mechanism via resource map."""
     print("\n" + "="*60)
     print("Test 3: TAS Mechanism via Resource Map")
     print("="*60)
@@ -104,7 +113,7 @@ def test_tas_mechanism():
 
 
 def test_cbs_with_preemption():
-    """Test CBS with preemption configured on resource"""
+    """Test CBS with preemption configured on resource."""
     print("\n" + "="*60)
     print("Test 4: CBS with Preemption via Resource Map")
     print("="*60)
@@ -130,7 +139,7 @@ def test_cbs_with_preemption():
 
 
 def test_with_system():
-    """Test plain Task in a complete pycpa system"""
+    """Test plain Task in a complete pycpa system."""
     print("\n" + "="*60)
     print("Test 5: Plain Task on TSN_Resource in Complete System")
     print("="*60)
@@ -184,7 +193,7 @@ def test_with_system():
 
 
 def test_validations():
-    """Test parameter validation - error cases"""
+    """Test parameter validation - error cases."""
     print("\n" + "="*60)
     print("Test 6-8: Parameter Validation")
     print("="*60)
@@ -239,6 +248,9 @@ def test_validations():
         print(f"Unexpected error: {e}")
 
 
+# ========================================
+# 3. Main function entry
+# ========================================
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARNING)
 

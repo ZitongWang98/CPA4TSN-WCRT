@@ -80,6 +80,12 @@ class TaskResult(object):
     # : dict containing details on the busy-window of the worst-case response
     # time
     b_wcrt = dict()
+    # : TAS gate-closed blocking at this hop (for E2E correction); None if not set
+    gate_closed_blocking = None
+    # : Same-priority blocking at this hop (for E2E K_actual); None if not set
+    same_priority_blocking = None
+    # : Gate-closed duration at this hop (tas_cycle - tas_window + wcet), as in b_plus; None if not set
+    gate_closed_duration = None
 
     def __init__(self):
         self.clean()
@@ -93,6 +99,9 @@ class TaskResult(object):
         self.busy_times = list()
         self.max_backlog = float('inf')
         self.q_wcrt = 0
+        self.gate_closed_blocking = None
+        self.same_priority_blocking = None
+        self.gate_closed_duration = None
 
     def b_wcrt_str(self):
         """ Returns a string with the components of b_wcrt

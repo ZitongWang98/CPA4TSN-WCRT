@@ -1082,6 +1082,16 @@ class TSN_Resource(Resource):
             Per-priority mapping of TAS gate window durations.
             Keys are scheduling_parameter (priority) values, values are window durations.
             Example: {7: 100, 6: 200}
+        guard_band : int/float
+            Default guard band duration for this port.
+            Used when analyzing TAS/NST co-scheduled flows with TASSchedulerE2E.
+            If set, overrides default guard band behavior.
+            If not set, for TAS flows: guard_band = task.wcet (default),
+                        for NST flows: guard_band is computed as max(wcet of lower-priority flows).
+        guard_band_by_priority : dict
+            Per-priority guard band mapping. Keys are priorities, values are durations.
+            Example: {7: 10, 5: 8}
+            If set for a priority, overrides both guard_band and default behavior.
 
     CBS (Credit-Based Shaper):
         idleslope : int/float
@@ -1169,6 +1179,8 @@ class TSN_Resource(Resource):
         self.tas_cycle_time = None
         self.tas_window_time = None
         self.tas_window_time_by_priority = None
+        self.guard_band = None
+        self.guard_band_by_priority = None
 
         # CBS parameters
         self.idleslope = None
@@ -1303,6 +1315,22 @@ class TSN_Resource(Resource):
             return self.is_express_by_priority[priority]
         return self.is_express
 
+    def effective_guard_band(self, priority):
+        """Return guard band duration for the given priority.
+
+        Lookup order:
+        1. guard_band_by_priority[priority]
+        2. guard_band (default)
+        3. None (caller should use task-specific default behavior)
+
+        Note: When this returns None, the caller (e.g., TASSchedulerE2E) should use
+        task-specific default behavior: task.wcet for TAS flows, or computed max(wcet)
+        for NST flows.
+        """
+        if self.guard_band_by_priority is not None and priority in self.guard_band_by_priority:
+            return self.guard_band_by_priority[priority]
+        return self.guard_band
+
     def _ats_param(self, priority, param_key):
         """Look up a single ATS parameter for the given priority.
 
@@ -1425,6 +1453,11 @@ class Path(object):
     (see Task.next_tasks and Task.prev_task),
     but having redundancy here is more flexible (e.g. path analysis may only be
     interesting for some task chains).
+
+    Optional attribute for TAS E2E correction (set by user if needed):
+    - tas_aligned (bool): If True, first hop is assumed to see no gate-closed
+      blocking; if False, first hop counts one. If not set, TAS E2E correction
+      is not applied.
     """
 
     def __init__(self, name, tasks=None):
@@ -1445,6 +1478,9 @@ class Path(object):
 
         ## Constant overhead to add to the latency of the path
         self.overhead = 0
+        ## Optional: tas_aligned (bool). True = aligned (first hop 0 gate-closed),
+        ## False = unaligned (first hop 1). None = TAS E2E correction not applied.
+        self.tas_aligned = None
 
     def __link_tasks(self, tasks):
         """ linking all tasks along a path"""

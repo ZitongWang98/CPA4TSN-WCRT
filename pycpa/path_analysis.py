@@ -29,6 +29,144 @@ from . import util
 import math
 
 
+def _is_tas_path(path_tasks, task_results):
+    """Return True iff every task in path_tasks is on a TSN resource with TAS for its priority.
+
+    Checks that each task:
+        - is a model.Task instance
+        - exists in task_results
+        - has a resource that is a TSN resource (is_tsn_resource=True)
+        - uses TAS scheduling for its priority (priority_uses_tas returns True)
+    """
+    for t in path_tasks:
+        if not isinstance(t, model.Task) or t not in task_results:
+            return False
+        res = getattr(t, 'resource', None)
+        if res is None or not getattr(res, 'is_tsn_resource', False):
+            return False
+        if not res.priority_uses_tas(t.scheduling_parameter):
+            return False
+    return True
+
+
+def _is_tas_e2e_path(path_tasks, task_results):
+    """Return True iff every task in path_tasks uses TASSchedulerE2E scheduler.
+
+    Checks that each task:
+        - is a model.Task instance
+        - exists in task_results
+        - has a resource with a scheduler that is an instance of TASSchedulerE2E
+    """
+    from . import schedulers
+    for t in path_tasks:
+        if not isinstance(t, model.Task) or t not in task_results:
+            return False
+        res = getattr(t, 'resource', None)
+        if res is None:
+            return False
+        sched = getattr(res, 'scheduler', None)
+        if not isinstance(sched, schedulers.TASSchedulerE2E):
+            return False
+    return True
+
+
+def _compute_tas_k_first(path, task_results, tas_aligned, path_tasks):
+    """Compute the base gate-closed blocking count along the path.
+
+    This function computes the initial K_actual value before accounting for
+    additional blockings from cumulative non-gate-closed delays.
+
+    Base K_actual:
+        - If tas_aligned=True: 0 (first hop has no gate-closed blocking)
+        - If tas_aligned=False: 1 (first hop has one gate-closed blocking)
+
+    The final K_actual in _apply_tas_e2e_correction is:
+        K_final = K_base + floor(sum_non_gate_closed / tas_window)
+
+    where sum_non_gate_closed is the total of non-gate-closed delays across all hops.
+    """
+    N = len(path_tasks)
+    if N == 0:
+        return 0
+    K_actual = 0
+    if tas_aligned:
+        K_actual = 0
+    else:
+        K_actual = 1
+    return K_actual
+
+
+def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
+    """Apply TAS E2E correction for end-to-end latency analysis.
+
+    E2E correction is only supported with TASSchedulerE2E scheduler.
+    TASScheduler does not support E2E correction or tas_aligned alignment configuration.
+
+    Requirements for E2E correction:
+        - Path must use TASSchedulerE2E scheduler (not TASScheduler)
+        - path.tas_aligned must be set to True or False
+        - All path tasks must have non_gate_closed and gate_closed_duration attributes
+
+    The corrected E2E formula is:
+        E2E = sum(non_gate_closed) + K_actual * G_duration
+
+    where:
+        - non_gate_closed = response_time_final + arrival_time_final - gate_closed_blocking
+          (the portion of WCRT excluding gate-closed blocking)
+        - G_duration = tas_cycle - tas_window (duration of one gate-closed period)
+        - K_actual = K_base + floor(sum_non_gate_closed / tas_window)
+        - K_base = 0 if tas_aligned=True, else 1
+
+    This formula accounts for aligned gate-closed periods across hops, where the
+    total gate-closed blocking is computed based on how many full gate-closed
+    periods the cumulative non-gate-closed delay spans.
+
+    Returns:
+        Corrected E2E latency if using TASSchedulerE2E with proper configuration,
+        otherwise returns sum_wcrt unchanged.
+    """
+    if not isinstance(path, model.Path):
+        return sum_wcrt
+    path_tasks = [t for t in tasks if isinstance(t, model.Task) and t in task_results]
+    if not path_tasks:
+        return sum_wcrt
+
+    # Check if path uses TASSchedulerE2E (required for E2E correction)
+    if not _is_tas_e2e_path(path_tasks, task_results):
+        # Not using TASSchedulerE2E, no E2E correction
+        return sum_wcrt
+
+    # Check if tas_aligned is set (required for E2E correction)
+    tas_aligned = getattr(path, 'tas_aligned', None)
+    if tas_aligned is None:
+        return sum_wcrt
+    if not all(getattr(task_results[t], 'non_gate_closed', None) is not None for t in path_tasks):
+        return sum_wcrt
+    if not _is_tas_path(path_tasks, task_results):
+        return sum_wcrt
+    t0 = path_tasks[0]
+    G_duration = getattr(task_results[t0], 'gate_closed_duration', None)
+    if G_duration is None or G_duration <= 0:
+        return sum_wcrt
+
+    # K_actual: actual number of gate-closed blockings along the path
+    K_actual = _compute_tas_k_first(path, task_results, tas_aligned, path_tasks)
+
+    # Sum of non-gate-closed blocking components (WCRT - gate_closed_blocking) for each hop
+    # This represents all other sources of delay (same-priority blocking, etc.)
+    sum_non_gate_closed = 0
+    for t in path_tasks:
+        sum_non_gate_closed += task_results[t].non_gate_closed
+    res = t.resource
+    prio = t.scheduling_parameter
+    tas_window = res.effective_tas_window_time(prio)
+    K_actual += int(math.floor(sum_non_gate_closed / tas_window))
+    # Corrected E2E = sum(non-gate-closed blocking) + K_actual * G_duration
+    corrected_sum = sum_non_gate_closed + K_actual * G_duration
+
+    return corrected_sum
+
+
 def end_to_end_latency(path, task_results, n=1 , task_overhead=0,
                        path_overhead=0, **kwargs):
     """ Computes the worst-/best-case e2e latency for n tokens to pass the path.
@@ -106,6 +244,9 @@ def end_to_end_latency_classic(path, task_results, n=1, injection_rate='max', **
         else:
             print("Warning: no task_results for task %s" % t.name)
 
+    # TAS E2E correction: replace sum(WCRT) with sum(WCRT) - (N - K) * G when applicable
+    lmax = _apply_tas_e2e_correction(path, task_results, tasks, lmax)
+
     if injection_rate == 'max':
         # add the eastliest possible release of event n
         lmax += tasks[0].in_event_model.delta_min(n)
@@ -182,6 +323,7 @@ def end_to_end_latency_improved(path, task_results, n=1, e_0=0, **kwargs):
     lmax = 0
     lmin = 0
     lmax = _event_exit_path(path, task_results, len(path.tasks) - 1, n - 1, e_0) - e_0
+    lmax = _apply_tas_e2e_correction(path, task_results, path.tasks, lmax)
 
     for t in path.tasks:
         if isinstance(t, model.Task) and t in task_results:
