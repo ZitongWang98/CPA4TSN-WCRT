@@ -470,6 +470,25 @@ Issues and pull requests are welcome.
 
 ---
 
+## TODO / Future Work
+
+The following features are planned for future development:
+
+1. **Implement WCRT calculation for individual TSN mechanisms**:
+   - CQF (Cyclic Queuing and Forwarding)
+   - ATS (Asynchronous Traffic Shaping)
+   - CBS (Credit-Based Shaper)
+   - Frame preemption
+
+2. **Progressively improve WCRT calculation for hybrid mechanisms**:
+   - Start with pairwise combinations
+   - Extend support for multiple mechanism combinations
+   - Eventually support full mechanism fusion scenarios
+
+3. **Implement tighter WCRT calculation based on trajectory method**:
+   - Integrate trajectory analysis for more precise WCRT bounds
+   - Improve accuracy for multi-hop scenarios with aligned schedules
+
 ---
 
 # TSN 功能概述
@@ -921,3 +940,22 @@ if __name__ == "__main__":
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request。
+
+## 待办事项 / TODO
+
+以下功能计划在后续版本中实现：
+
+1. **实现单独 TSN 机制的 WCRT 计算**：
+   - CQF (循环排队转发)
+   - ATS (异步流量整形)
+   - CBS (基于信用的整形器)
+   - 帧抢占
+
+2. **逐步完善机制融合下的各类流 WCRT 计算**：
+   - 从两两机制结合开始
+   - 逐步扩展支持多机制组合
+   - 最终支持全机制融合场景
+
+3. **实现基于轨迹法的 WCRT 更紧密计算**：
+   - 集成轨迹分析法以获得更精确的 WCRT 边界
+   - 改进对齐调度下的多跳场景分析精度
