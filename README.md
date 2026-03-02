@@ -8,7 +8,7 @@ A unified WCRT (Worst-Case Response Time) analysis framework for TSN (Time-Sensi
 
 - WCRT analysis for major TSN scheduling mechanisms
 - Support for hybrid scheduling combinations
-- Forward end-to-end delay analysis for AFDX networks (FP/FIFO with/without serialization)
+- Forward end-to-end delay analysis for networks (FP/FIFO with/without serialization)
 - Built on pyCPA, easy to extend with new models
 
 ---
@@ -606,7 +606,7 @@ if __name__ == "__main__":
 - **TASSchedulerE2E** (E2E correction):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
 
-- **FPFIFOForwardAnalyzer** (AFDX Forward Analysis):
+- **FPFIFOForwardAnalyzer** (Forward Analysis):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
 ---
@@ -663,7 +663,7 @@ The following features are planned for future development:
 
 - 主要 TSN 调度机制的 WCRT 分析
 - 支持混合调度组合
-- AFDX 网络前向端到端延迟分析（FP/FIFO，含/不含序列化效应）
+- 网络前向端到端延迟分析（FP/FIFO，含/不含序列化效应）
 - 基于 pyCPA，易于扩展新模型
 
 ## TSN 功能详细说明
@@ -1245,7 +1245,7 @@ if __name__ == "__main__":
 - **TASSchedulerE2E** (E2E 修正和抢占支持):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
 
-- **FPFIFOForwardAnalyzer** (AFDX 前向分析):
+- **FPFIFOForwardAnalyzer** (前向分析):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
 ## 兼容性与维护修复
