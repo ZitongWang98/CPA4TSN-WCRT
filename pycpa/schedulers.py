@@ -814,14 +814,63 @@ class TASSchedulerE2E(TASScheduler):
     E2E latency as the simple sum of per-hop WCRT values.
     """
 
+    def response_time(self, task, q, w, details=None, **kwargs):
+        """ Return the response time for q activations in a busy window of duration w.
+
+        For forwarding tasks: returns task.wcet directly (simple transmission time).
+        For regular tasks: uses TASScheduler's response_time calculation.
+
+        :param task: The task being analyzed
+        :param q: Number of activations
+        :param w: Busy window duration
+        :param details: Optional details dictionary
+        :return: Response time
+        """
+        from . import model
+        if model.ForwardingTask.is_forwarding_task(task):
+            # Forwarding task: response time for q-th activation
+            # In a busy window of q activations, the q-th event's response time
+            # is w - delta_min(q) where w = q * wcet (no blocking).
+            # For q=1 this simplifies to wcet.
+            return task.wcet
+        # Use TASScheduler's response_time for regular tasks
+        return TASScheduler.response_time(self, task, q, w, details=details, **kwargs)
+
     def b_plus(self, task, q, details=None, **kwargs):
-        """ Same as TASScheduler.b_plus, plus writes gate_closed_blocking to
-        task_results when this call corresponds to the WCRT-winning busy window
-        (i.e. when details is provided) and the task uses TAS.
+        """ Return the maximum time required to process q activations.
+
+        For forwarding tasks: returns q * wcet directly with no blocking
+        considerations (no gate-closed blocking, no same-priority blocking).
+        For regular tasks: same as TASScheduler.b_plus with additional
+        gate_closed_blocking recording for E2E correction.
+
+        :param task: Task to analyze
+        :param q: Number of job activations
+        :param details: Dictionary for detailed analysis output
+        :param kwargs: Additional arguments (including task_results)
+        :return: Worst-case response time bound for q activations
         """
         assert task.scheduling_parameter is not None
         assert task.wcet >= 0
 
+        # Handle forwarding tasks - no blocking, simple response time
+        from . import model
+        if model.ForwardingTask.is_forwarding_task(task):
+            # Forwarding task: busy window = q * wcet (no waiting, no blocking)
+            w = q * task.wcet
+
+            if details is not None:
+                details['q*WCET'] = str(q) + '*' + str(task.wcet) + '=' + str(w)
+
+            # Write gate_closed info for E2E correction
+            task_results = kwargs.get('task_results')
+            if task_results is not None and task in task_results:
+                task_results[task].gate_closed_duration = 0
+                task_results[task].non_gate_closed = task.wcet  # no gate blocking
+
+            return w
+
+        # Regular task processing follows (same as TASScheduler)
         resource = task.resource
         _is_tsn = getattr(resource, 'is_tsn_resource', False)
         _task_uses_tas = _is_tsn and resource.priority_uses_tas(task.scheduling_parameter)

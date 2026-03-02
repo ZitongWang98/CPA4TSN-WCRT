@@ -131,8 +131,19 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
     if not path_tasks:
         return sum_wcrt
 
+    # Separate regular tasks from forwarding tasks.
+    # TAS path/scheduler checks only apply to regular tasks; forwarding tasks
+    # use a reserved negative scheduling_parameter that would fail those checks.
+    regular_tasks = [t for t in path_tasks
+                     if not model.ForwardingTask.is_forwarding_task(t)]
+    forwarding_tasks = [t for t in path_tasks
+                        if model.ForwardingTask.is_forwarding_task(t)]
+
+    if not regular_tasks:
+        return sum_wcrt
+
     # Check if path uses TASSchedulerE2E (required for E2E correction)
-    if not _is_tas_e2e_path(path_tasks, task_results):
+    if not _is_tas_e2e_path(regular_tasks, task_results):
         # Not using TASSchedulerE2E, no E2E correction
         return sum_wcrt
 
@@ -142,27 +153,30 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
         return sum_wcrt
     if not all(getattr(task_results[t], 'non_gate_closed', None) is not None for t in path_tasks):
         return sum_wcrt
-    if not _is_tas_path(path_tasks, task_results):
+    if not _is_tas_path(regular_tasks, task_results):
         return sum_wcrt
-    t0 = path_tasks[0]
+    t0 = regular_tasks[0]
     G_duration = getattr(task_results[t0], 'gate_closed_duration', None)
     if G_duration is None or G_duration <= 0:
         return sum_wcrt
 
     # K_actual: actual number of gate-closed blockings along the path
-    K_actual = _compute_tas_k_first(path, task_results, tas_aligned, path_tasks)
+    K_actual = _compute_tas_k_first(path, task_results, tas_aligned, regular_tasks)
 
     # Sum of non-gate-closed blocking components (WCRT - gate_closed_blocking) for each hop
     # This represents all other sources of delay (same-priority blocking, etc.)
+    # Only regular tasks participate in the gate-closed correction formula.
     sum_non_gate_closed = 0
-    for t in path_tasks:
+    for t in regular_tasks:
         sum_non_gate_closed += task_results[t].non_gate_closed
     res = t.resource
     prio = t.scheduling_parameter
     tas_window = res.effective_tas_window_time(prio)
     K_actual += int(math.floor(sum_non_gate_closed / tas_window))
-    # Corrected E2E = sum(non-gate-closed blocking) + K_actual * G_duration
-    corrected_sum = sum_non_gate_closed + K_actual * G_duration
+    # Corrected E2E = sum(non-gate-closed of regular tasks) + K_actual * G_duration
+    #               + sum(forwarding task WCRT)
+    forwarding_delay_total = sum(task_results[t].wcrt for t in forwarding_tasks)
+    corrected_sum = sum_non_gate_closed + K_actual * G_duration + forwarding_delay_total
 
     return corrected_sum
 

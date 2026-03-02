@@ -40,7 +40,23 @@ This project implements the following TSN (Time-Sensitive Networking) related fu
 - **`path.tas_aligned`**: Marks TAS time window alignment status along the path
 - **`TASSchedulerE2E`**: Automatically records `gate_closed_blocking` for E2E correction
 
-### 4. Supported Mechanisms
+### 4. Switch Forwarding Delay
+
+**ForwardingTask** models the processing/transmission delay when a packet traverses a switch. It is inserted into the analysis path between hops and participates in both E2E latency calculation and event model propagation.
+
+- Supports symmetric delay (`bcet = wcet`) or asymmetric delay (`bcet < wcet`)
+- When `bcet != wcet`, the response time jitter (`wcet - bcet`) propagates into the downstream task's input event model, just like a regular scheduler
+- No gate-closed blocking or same-priority interference
+- Compatible with TAS E2E correction (`tas_aligned`)
+
+Key functions:
+- **`model.add_forwarding_delay_to_path(path, switch_resource, delay_us)`**: Add a single forwarding delay task for a specific switch
+- **`model.add_forwarding_delays_for_path(path)`**: Automatically add forwarding delays for all switches on a path
+- **`model.auto_add_forwarding_delays(system)`**: Automatically add forwarding delays for all paths in a system
+
+`delay_us` can be a single number (symmetric) or a `(bcet, wcet)` tuple (asymmetric). `TSN_Resource` also accepts a `forwarding_delay` constructor parameter in either format.
+
+### 5. Supported Mechanisms
 
 | Mechanism | Status | Description |
 |-----------|--------|-------------|
@@ -281,7 +297,7 @@ sw_per_prio = s.bind_resource(model.TSN_Resource(
 
 # Method 3: No guard_band set (use default behavior)
 # TAS flow: guard_band = task.wcet
-# NST flow: guard_band is computed as max(wcet of lower-priority flows)
+# NST flow: guard_band is computed as max(max wcet of flows)
 sw_default = s.bind_resource(model.TSN_Resource(
     "Switch3",
     schedulers.TASSchedulerE2E(),
@@ -289,6 +305,140 @@ sw_default = s.bind_resource(model.TSN_Resource(
     tas_cycle_time=1000,
     tas_window_time_by_priority={7: 100}
 ))
+```
+
+#### Example 3: Forwarding Delay
+
+```python
+from pycpa import model, analysis, path_analysis, schedulers, options
+
+options.init_pycpa()
+s = model.System()
+
+# Method 1: Symmetric delay (bcet = wcet = 5 us)
+sw1 = s.bind_resource(model.TSN_Resource(
+    "Switch1", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS'},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    forwarding_delay=5
+))
+
+# Method 2: Asymmetric delay (bcet=3, wcet=7)
+sw2 = s.bind_resource(model.TSN_Resource(
+    "Switch2", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS'},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    forwarding_delay=(3, 7)
+))
+
+# Create two-hop flow
+task_h1 = model.Task('Flow_h1', bcet=12, wcet=12, scheduling_parameter=7)
+sw1.bind_task(task_h1)
+task_h1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+task_h2 = model.Task('Flow_h2', bcet=12, wcet=12, scheduling_parameter=7)
+sw2.bind_task(task_h2)
+task_h1.link_dependent_task(task_h2)
+
+# Create path and add forwarding delays automatically
+path = model.Path('Flow_Path', [task_h1, task_h2])
+s.bind_path(path)
+model.add_forwarding_delays_for_path(path)
+# Path is now: Flow_h1 -> FD_Switch1 -> Flow_h2 -> FD_Switch2
+
+# Analyze
+results = analysis.analyze_system(s)
+lmin, lmax = path_analysis.end_to_end_latency(path, results, 1)
+print(f"E2E: min={lmin} us, max={lmax} us")
+```
+
+#### Example 4: Comprehensive Multi-Hop Analysis
+
+This example combines all TASSchedulerE2E features: TAS and non-TAS mixed priorities, per-priority and global guard band, asymmetric and symmetric forwarding delay, E2E correction with `tas_aligned`, and multi-flow interference.
+
+```python
+from pycpa import model, analysis, path_analysis, schedulers, options
+
+options.init_pycpa()
+s = model.System()
+
+# Switch1: per-priority guard_band + asymmetric forwarding delay (bcet=3, wcet=7)
+sw1 = s.bind_resource(model.TSN_Resource(
+    "Switch1", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS', 1: None},   # TAS + non-TAS coexistence
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    guard_band_by_priority={7: 10, 1: 5},          # Per-priority guard band
+    forwarding_delay=(3, 7)                         # Asymmetric forwarding delay
+))
+
+# Switch2: global guard_band + symmetric forwarding delay
+sw2 = s.bind_resource(model.TSN_Resource(
+    "Switch2", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS', 1: None},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    guard_band=8,                                   # Global guard band
+    forwarding_delay=5                              # Symmetric forwarding delay
+))
+
+# TAS flow (priority 7): two-hop, period 1000 us
+tas_h1 = model.Task('TAS_h1', bcet=12, wcet=12, scheduling_parameter=7)
+sw1.bind_task(tas_h1)
+tas_h1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+tas_h2 = model.Task('TAS_h2', bcet=12, wcet=12, scheduling_parameter=7)
+sw2.bind_task(tas_h2)
+tas_h1.link_dependent_task(tas_h2)
+
+# Non-TAS flow (priority 1): two-hop, period 2000 us, coexists with TAS
+nst_h1 = model.Task('NST_h1', bcet=50, wcet=50, scheduling_parameter=1)
+sw1.bind_task(nst_h1)
+nst_h1.in_event_model = model.PJdEventModel(P=2000, J=0)
+
+nst_h2 = model.Task('NST_h2', bcet=50, wcet=50, scheduling_parameter=1)
+sw2.bind_task(nst_h2)
+nst_h1.link_dependent_task(nst_h2)
+
+# TAS path with E2E correction (aligned mode)
+tas_path = model.Path('TAS_Path', [tas_h1, tas_h2])
+tas_path.tas_aligned = True    # Enable E2E correction, aligned mode
+s.bind_path(tas_path)
+
+# Non-TAS path (no E2E correction, tas_aligned not set)
+nst_path = model.Path('NST_Path', [nst_h1, nst_h2])
+s.bind_path(nst_path)
+
+# Auto-add forwarding delays for all paths based on resource configuration
+model.auto_add_forwarding_delays(s)
+# TAS_Path: TAS_h1 -> FD_Switch1(3,7) -> TAS_h2 -> FD_Switch2(5,5)
+# NST_Path: NST_h1 -> FD_Switch1(3,7) -> NST_h2 -> FD_Switch2(5,5)
+
+# Analyze
+results = analysis.analyze_system(s)
+
+# Print TAS path results
+print("TAS Path:", [t.name for t in tas_path.tasks])
+for t in tas_path.tasks:
+    if t in results:
+        is_fd = model.ForwardingTask.is_forwarding_task(t)
+        marker = " [FD]" if is_fd else ""
+        print(f"  {t.name}{marker}: WCRT={results[t].wcrt} us, BCRT={results[t].bcrt} us")
+lmin, lmax = path_analysis.end_to_end_latency(tas_path, results, 1)
+print(f"  E2E (corrected, aligned): min={lmin} us, max={lmax} us")
+
+# Print NST path results
+print()
+print("NST Path:", [t.name for t in nst_path.tasks])
+for t in nst_path.tasks:
+    if t in results:
+        is_fd = model.ForwardingTask.is_forwarding_task(t)
+        marker = " [FD]" if is_fd else ""
+        print(f"  {t.name}{marker}: WCRT={results[t].wcrt} us, BCRT={results[t].bcrt} us")
+lmin, lmax = path_analysis.end_to_end_latency(nst_path, results, 1)
+print(f"  E2E: min={lmin} us, max={lmax} us")
 ```
 
 ---
@@ -361,6 +511,12 @@ priority_mechanism_map={
 | `ats_scheduler_group` | int | No | Default scheduler group |
 | `ats_params_by_priority` | dict | Yes (when using ATS) | Per-priority ATS parameter mapping |
 
+#### Switch Forwarding Delay Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `forwarding_delay` | int/float or tuple | No | Switch forwarding delay in microseconds. Single value for symmetric delay (`bcet=wcet`), or `(bcet, wcet)` tuple for asymmetric delay |
+
 ### Path Attributes
 
 | Attribute | Type | Condition | Description |
@@ -385,15 +541,16 @@ After analysis with TASSchedulerE2E, task results include the following addition
 When using `TASSchedulerE2E` and `path.tas_aligned` is set, end-to-end latency calculation applies the correction formula:
 
 ```
-E2E_corrected = sum(non_gate_closed) + K_actual * G_duration
+E2E_corrected = sum(non_gate_closed) + K_actual * G_duration + sum(forwarding_delay_wcrt)
 ```
 
 Where:
-- `non_gate_closed`: Portion of WCRT excluding gate-closed blocking for each hop
+- `non_gate_closed`: Portion of WCRT excluding gate-closed blocking for each regular hop
 - `G_duration`: Gate-closed period duration = `tas_cycle - tas_window + guard_band`
 - `K_actual = K_base + floor(sum_non_gate_closed / tas_window)`
   - `K_base = 0` when `tas_aligned = True`
   - `K_base = 1` when `tas_aligned = False`
+- `forwarding_delay_wcrt`: WCRT of each forwarding task on the path (added independently, not affected by gate-closed correction)
 
 ---
 
@@ -529,7 +686,23 @@ The following features are planned for future development:
 - **`path.tas_aligned`**: 标记路径的 TAS 时间窗对齐状态
 - **`TASSchedulerE2E`**: 自动记录 `gate_closed_blocking` 信息用于 E2E 修正
 
-### 4. 支持的分析机制
+### 4. 交换机转发延迟
+
+**ForwardingTask** 用于建模报文经过交换机时的处理/传输延迟。它被插入到分析路径中各跳之间，同时参与 E2E 延迟计算和事件模型传播。
+
+- 支持对称延迟（`bcet = wcet`）或非对称延迟（`bcet < wcet`）
+- 当 `bcet != wcet` 时，响应时间抖动（`wcet - bcet`）会传播到下游任务的输入事件模型中，与经过普通调度器的行为一致
+- 不受门控阻塞和同优先级干扰的影响
+- 兼容 TAS E2E 修正（`tas_aligned`）
+
+关键函数：
+- **`model.add_forwarding_delay_to_path(path, switch_resource, delay_us)`**: 为指定交换机添加单个转发延迟任务
+- **`model.add_forwarding_delays_for_path(path)`**: 自动为路径上所有交换机添加转发延迟
+- **`model.auto_add_forwarding_delays(system)`**: 自动为系统中所有路径添加转发延迟
+
+`delay_us` 可以是单个数值（对称）或 `(bcet, wcet)` 元组（非对称）。`TSN_Resource` 的构造参数 `forwarding_delay` 同样支持这两种格式。
+
+### 5. 支持的分析机制
 
 | 机制 | 状态 | 描述 |
 |-----|------|------|
@@ -764,7 +937,7 @@ sw_per_prio = s.bind_resource(model.TSN_Resource(
 
 # 方式 3: 不设置（使用默认行为）
 # TAS 流: guard_band = task.wcet
-# NST 流: guard_band 计算为 max(低优先级流的 wcet)
+# NST 流: guard_band 计算为 max(流的 wcet)
 sw_default = s.bind_resource(model.TSN_Resource(
     "Switch3",
     schedulers.TASSchedulerE2E(),
@@ -772,6 +945,140 @@ sw_default = s.bind_resource(model.TSN_Resource(
     tas_cycle_time=1000,
     tas_window_time_by_priority={7: 100}
 ))
+```
+
+#### 示例 3: 交换机转发延迟
+
+```python
+from pycpa import model, analysis, path_analysis, schedulers, options
+
+options.init_pycpa()
+s = model.System()
+
+# 方式 1: 对称延迟 (bcet = wcet = 5 us)
+sw1 = s.bind_resource(model.TSN_Resource(
+    "Switch1", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS'},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    forwarding_delay=5
+))
+
+# 方式 2: 非对称延迟 (bcet=3, wcet=7)
+sw2 = s.bind_resource(model.TSN_Resource(
+    "Switch2", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS'},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    forwarding_delay=(3, 7)
+))
+
+# 创建两跳流量
+task_h1 = model.Task('Flow_h1', bcet=12, wcet=12, scheduling_parameter=7)
+sw1.bind_task(task_h1)
+task_h1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+task_h2 = model.Task('Flow_h2', bcet=12, wcet=12, scheduling_parameter=7)
+sw2.bind_task(task_h2)
+task_h1.link_dependent_task(task_h2)
+
+# 创建路径并自动添加转发延迟
+path = model.Path('Flow_Path', [task_h1, task_h2])
+s.bind_path(path)
+model.add_forwarding_delays_for_path(path)
+# 路径变为: Flow_h1 -> FD_Switch1 -> Flow_h2 -> FD_Switch2
+
+# 分析
+results = analysis.analyze_system(s)
+lmin, lmax = path_analysis.end_to_end_latency(path, results, 1)
+print(f"E2E: min={lmin} us, max={lmax} us")
+```
+
+#### 示例 4: 综合多跳分析
+
+本示例综合使用了 TASSchedulerE2E 的所有配置项：TAS 与非 TAS 混合优先级、按优先级和全局 guard band、非对称和对称转发延迟、`tas_aligned` E2E 修正、多流干扰。
+
+```python
+from pycpa import model, analysis, path_analysis, schedulers, options
+
+options.init_pycpa()
+s = model.System()
+
+# Switch1: 按优先级 guard_band + 非对称转发延迟 (bcet=3, wcet=7)
+sw1 = s.bind_resource(model.TSN_Resource(
+    "Switch1", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS', 1: None},   # TAS + 非 TAS 共存
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    guard_band_by_priority={7: 10, 1: 5},          # 按优先级 guard band
+    forwarding_delay=(3, 7)                         # 非对称转发延迟
+))
+
+# Switch2: 全局 guard_band + 对称转发延迟
+sw2 = s.bind_resource(model.TSN_Resource(
+    "Switch2", schedulers.TASSchedulerE2E(),
+    priority_mechanism_map={7: 'TAS', 1: None},
+    tas_cycle_time=1000,
+    tas_window_time_by_priority={7: 100},
+    guard_band=8,                                   # 全局 guard band
+    forwarding_delay=5                              # 对称转发延迟
+))
+
+# TAS 流 (优先级 7): 两跳，周期 1000 us
+tas_h1 = model.Task('TAS_h1', bcet=12, wcet=12, scheduling_parameter=7)
+sw1.bind_task(tas_h1)
+tas_h1.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+tas_h2 = model.Task('TAS_h2', bcet=12, wcet=12, scheduling_parameter=7)
+sw2.bind_task(tas_h2)
+tas_h1.link_dependent_task(tas_h2)
+
+# 非 TAS 流 (优先级 1): 两跳，周期 2000 us，与 TAS 流共存
+nst_h1 = model.Task('NST_h1', bcet=50, wcet=50, scheduling_parameter=1)
+sw1.bind_task(nst_h1)
+nst_h1.in_event_model = model.PJdEventModel(P=2000, J=0)
+
+nst_h2 = model.Task('NST_h2', bcet=50, wcet=50, scheduling_parameter=1)
+sw2.bind_task(nst_h2)
+nst_h1.link_dependent_task(nst_h2)
+
+# TAS 路径，启用 E2E 修正（对齐模式）
+tas_path = model.Path('TAS_Path', [tas_h1, tas_h2])
+tas_path.tas_aligned = True    # 启用 E2E 修正，对齐模式
+s.bind_path(tas_path)
+
+# 非 TAS 路径（不启用 E2E 修正）
+nst_path = model.Path('NST_Path', [nst_h1, nst_h2])
+s.bind_path(nst_path)
+
+# 根据资源配置自动为所有路径添加转发延迟
+model.auto_add_forwarding_delays(s)
+# TAS_Path: TAS_h1 -> FD_Switch1(3,7) -> TAS_h2 -> FD_Switch2(5,5)
+# NST_Path: NST_h1 -> FD_Switch1(3,7) -> NST_h2 -> FD_Switch2(5,5)
+
+# 分析
+results = analysis.analyze_system(s)
+
+# 输出 TAS 路径结果
+print("TAS Path:", [t.name for t in tas_path.tasks])
+for t in tas_path.tasks:
+    if t in results:
+        is_fd = model.ForwardingTask.is_forwarding_task(t)
+        marker = " [FD]" if is_fd else ""
+        print(f"  {t.name}{marker}: WCRT={results[t].wcrt} us, BCRT={results[t].bcrt} us")
+lmin, lmax = path_analysis.end_to_end_latency(tas_path, results, 1)
+print(f"  E2E (corrected, aligned): min={lmin} us, max={lmax} us")
+
+# 输出非 TAS 路径结果
+print()
+print("NST Path:", [t.name for t in nst_path.tasks])
+for t in nst_path.tasks:
+    if t in results:
+        is_fd = model.ForwardingTask.is_forwarding_task(t)
+        marker = " [FD]" if is_fd else ""
+        print(f"  {t.name}{marker}: WCRT={results[t].wcrt} us, BCRT={results[t].bcrt} us")
+lmin, lmax = path_analysis.end_to_end_latency(nst_path, results, 1)
+print(f"  E2E: min={lmin} us, max={lmax} us")
 ```
 
 ## TSN 配置参数说明
@@ -842,6 +1149,12 @@ priority_mechanism_map={
 | `ats_scheduler_group` | int | 否 | 默认调度器组 |
 | `ats_params_by_priority` | dict | 是（使用 ATS 时） | 按优先级 ATS 参数映射 |
 
+#### 交换机转发延迟参数
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----|------|-----|------|
+| `forwarding_delay` | int/float 或 tuple | 否 | 交换机转发延迟，单位微秒。单个数值表示对称延迟（`bcet=wcet`），`(bcet, wcet)` 元组表示非对称延迟 |
+
 ### Path 属性
 
 | 属性 | 类型 | 使用条件 | 描述 |
@@ -864,15 +1177,16 @@ priority_mechanism_map={
 当使用 `TASSchedulerE2E` 且 `path.tas_aligned` 被设置时，端到端延迟计算会应用修正公式：
 
 ```
-E2E_corrected = sum(non_gate_closed) + K_actual * G_duration
+E2E_corrected = sum(non_gate_closed) + K_actual * G_duration + sum(forwarding_delay_wcrt)
 ```
 
 其中：
-- `non_gate_closed`: 每跳 WCRT 排除 gate-closed 阻塞的部分
+- `non_gate_closed`: 每个常规跳 WCRT 排除 gate-closed 阻塞的部分
 - `G_duration`: gate-closed 周期持续时间 = `tas_cycle - tas_window + guard_band`
 - `K_actual = K_base + floor(sum_non_gate_closed / tas_window)`
   - `K_base = 0` 当 `tas_aligned = True`
   - `K_base = 1` 当 `tas_aligned = False`
+- `forwarding_delay_wcrt`: 路径上每个转发延迟任务的 WCRT（独立累加，不受门控修正影响）
 
 ## 完整示例
 

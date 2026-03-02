@@ -1034,6 +1034,230 @@ class Fork (Task):
         return self.mapping[dst_task]
 
 
+class ForwardingTask(Task):
+    """ Represents switch forwarding delay between hops.
+
+    A ForwardingTask models the processing and transmission delay that occurs
+    when a packet is forwarded through a switch. Key characteristics:
+        - Not affected by gate control (no gate-closed blocking)
+        - No same-priority blocking (no other forwarding tasks interfere)
+        - WCRT = BCET = configured forwarding delay
+        - in_event_model comes from upstream task (chained dependency)
+        - out_event_model feeds into downstream task
+
+    Forwarding tasks use reserved scheduling_parameter range to distinguish
+    from regular tasks. Only TASSchedulerE2E recognizes and handles
+    forwarding tasks specially.
+
+    Note: This functionality is based on:
+    Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper
+    with preemption supported in time-sensitive networks[J]. Computer Networks,
+    2025, 269: 111424.
+    """
+
+    # Reserved scheduling parameter range for forwarding tasks
+    FORWARDING_PRIO_MIN = -100
+    FORWARDING_PRIO_MAX = -1
+
+    def __init__(self, name, bcet, wcet, scheduling_parameter=-1, **kwargs):
+        """ Initialize a forwarding task.
+
+        :param name: Task name
+        :param bcet: Best case execution time (forwarding delay)
+        :param wcet: Worst case execution time (forwarding delay)
+        :param scheduling_parameter: Reserved priority (default -1, must be in FORWARDING_PRIO_* range)
+        """
+        # Validate scheduling parameter is in reserved range
+        if not (self.FORWARDING_PRIO_MIN <= scheduling_parameter <= self.FORWARDING_PRIO_MAX):
+            raise ValueError(
+                "ForwardingTask scheduling_parameter must be in range [%d, %d], got %d" %
+                (self.FORWARDING_PRIO_MIN, self.FORWARDING_PRIO_MAX, scheduling_parameter)
+            )
+        super(ForwardingTask, self).__init__(name, bcet, wcet, scheduling_parameter, **kwargs)
+        # Mark this as a forwarding task for quick identification
+        self._is_forwarding_task = True
+
+    @classmethod
+    def is_forwarding_task(cls, task):
+        """ Check if a task is a forwarding task.
+
+        :param task: Task to check
+        :return: True if task is a forwarding task, False otherwise
+        """
+        if isinstance(task, ForwardingTask):
+            return True
+        if hasattr(task, '_is_forwarding_task'):
+            return task._is_forwarding_task
+        if hasattr(task, 'scheduling_parameter'):
+            return cls.FORWARDING_PRIO_MIN <= task.scheduling_parameter <= cls.FORWARDING_PRIO_MAX
+        return False
+
+
+def add_forwarding_delay_to_path(path, switch_resource, delay_us, name=None):
+    """ Add a forwarding delay task to a path for a specific switch.
+
+    This function inserts a ForwardingTask into the path after the last task
+    that is bound to the specified switch resource.
+
+    :param path: The Path object to modify
+    :param switch_resource: The Resource representing the switch
+    :param delay_us: Forwarding delay in microseconds. Can be a single value
+                     (wcet = bcet = delay_us) or a tuple (bcet, wcet).
+    :param name: Optional name for the forwarding task (default: "FD_<switch_name>")
+    :return: The created ForwardingTask
+    """
+    if name is None:
+        name = "FD_" + str(switch_resource.name)
+
+    if isinstance(delay_us, (tuple, list)):
+        bcet, wcet = delay_us
+    else:
+        bcet, wcet = delay_us, delay_us
+
+    fd_task = ForwardingTask(
+        name=name,
+        bcet=bcet,
+        wcet=wcet,
+        scheduling_parameter=-1
+    )
+
+    # Find the insertion point: after the last task bound to this switch
+    insert_index = 0
+    for i, task in enumerate(path.tasks):
+        if hasattr(task, 'resource') and task.resource == switch_resource:
+            insert_index = i + 1
+
+    # Insert forwarding task at the correct position
+    path.tasks.insert(insert_index, fd_task)
+
+    # Bind forwarding task to the switch resource
+    switch_resource.bind_task(fd_task)
+
+    # Link output model: forwarding task outputs to next task's input
+    # This makes the forwarding task part of the analysis chain
+    # Note: The input event model of forwarding task will be inherited
+    # from the task it depends on through the chain
+
+    # Link dependencies:
+    # - The task at insert_index - 1 should link to forwarding task
+    # - The forwarding task should link to the task at insert_index + 1
+    # This ensures: upstream task out_event_model -> fd in_event_model -> fd out_event_model -> downstream in_event_model
+    if insert_index > 0:
+        prev_task = path.tasks[insert_index - 1]
+        prev_task.link_dependent_task(fd_task)
+
+    if insert_index < len(path.tasks) - 1:
+        next_task = path.tasks[insert_index + 1]
+        fd_task.link_dependent_task(next_task)
+
+    return fd_task
+
+
+def add_forwarding_delays_for_path(path, switch_forwarding_delays=None):
+    """ Automatically add forwarding delay tasks to a path for all switches.
+
+    For each switch resource that has tasks on the path, adds a forwarding
+    delay task if the switch has a configured delay.
+
+    :param path: The Path object
+    :param switch_forwarding_delays: Dict mapping Resource to delay (us).
+                                     Values can be a single number (bcet=wcet)
+                                     or a tuple (bcet, wcet).
+                                     If None, uses resource.forwarding_delay parameter.
+    :return: List of created ForwardingTask objects
+    """
+    forwarding_tasks = []
+
+    # Collect all switch resources on the path (resources that have tasks bound)
+    switches_on_path = set()
+    for task in path.tasks:
+        if hasattr(task, 'resource'):
+            switches_on_path.add(task.resource)
+
+    # Add forwarding delay for each switch
+    for switch in switches_on_path:
+        # Determine delay
+        delay = None
+        if switch_forwarding_delays and switch in switch_forwarding_delays:
+            delay = switch_forwarding_delays[switch]
+        elif hasattr(switch, 'forwarding_delay'):
+            delay = switch.forwarding_delay
+
+        # Normalize and check: delay can be a number or (bcet, wcet) tuple
+        if delay is not None:
+            if isinstance(delay, (tuple, list)):
+                bcet, wcet = delay
+                if wcet > 0:
+                    fd_task = add_forwarding_delay_to_path(path, switch, (bcet, wcet))
+                    forwarding_tasks.append(fd_task)
+            elif delay > 0:
+                fd_task = add_forwarding_delay_to_path(path, switch, delay)
+                forwarding_tasks.append(fd_task)
+
+    return forwarding_tasks
+
+
+def auto_add_forwarding_delays(system, latency_by_resource=None, default_latency=0):
+    """ Automatically add forwarding delay tasks to all paths in a system.
+
+    For each regular task with a TSN_Resource, adds a forwarding delay task
+    after it if the resource has a forwarding_delay configured.
+
+    :param system: System object containing paths and resources
+    :param latency_by_resource: Dict mapping resource names to latency values (us).
+                                Values can be a single number (bcet=wcet) or a tuple (bcet, wcet).
+    :param default_latency: Default forwarding delay for resources not in dict (us).
+                            Can be a single number or a tuple (bcet, wcet).
+    :return: Dict mapping (path_name, task_name) -> (forwarding_task, latency)
+    """
+    result = {}
+
+    def _latency_is_positive(lat):
+        """Check if a latency value (number or tuple) represents a positive delay."""
+        if isinstance(lat, (tuple, list)):
+            return lat[1] > 0  # check wcet
+        return lat > 0
+
+    for path in system.paths:
+        # Collect tasks with potential forwarding delays
+        tasks_to_add = []
+        for i, task in enumerate(path.tasks):
+            if ForwardingTask.is_forwarding_task(task):
+                continue
+            res = getattr(task, 'resource', None)
+            if res and getattr(res, 'is_tsn_resource', False):
+                if latency_by_resource and res.name in latency_by_resource:
+                    latency = latency_by_resource[res.name]
+                elif hasattr(res, 'forwarding_delay') and _latency_is_positive(res.forwarding_delay):
+                    latency = res.forwarding_delay
+                else:
+                    latency = default_latency
+                if _latency_is_positive(latency):
+                    tasks_to_add.append((i, task, latency))
+
+        # Build switch -> delay mapping
+        switch_forwarding_delays = {}
+        for task_index, original_task, latency in tasks_to_add:
+            res = getattr(original_task, 'resource', None)
+            if res:
+                if res not in switch_forwarding_delays:
+                    switch_forwarding_delays[res] = latency
+
+        # Add forwarding delays for each unique switch
+        added_fds = add_forwarding_delays_for_path(path, switch_forwarding_delays)
+
+        # Record results
+        for fd in added_fds:
+            # Find the original task that this FD follows
+            fd_index = path.tasks.index(fd)
+            if fd_index > 0:
+                original_task = path.tasks[fd_index - 1]
+                if not ForwardingTask.is_forwarding_task(original_task):
+                    result[(path.name, original_task.name)] = (fd, fd.wcet)
+
+    return result
+
+
 class TSN_Resource(Resource):
     """ A TSN_Resource extends Resource with TSN (Time-Sensitive Networking) port-level parameters.
 
@@ -1201,6 +1425,10 @@ class TSN_Resource(Resource):
         self.ats_ebs = None
         self.ats_scheduler_group = None
         self.ats_params_by_priority = None
+
+        # Switch forwarding delay (in microseconds).
+        # Can be a single value (bcet = wcet) or a tuple (bcet, wcet).
+        self.forwarding_delay = kwargs.pop('forwarding_delay', 0)
 
         for key in kwargs:
             setattr(self, key, kwargs[key])

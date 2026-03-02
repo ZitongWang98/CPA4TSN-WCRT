@@ -1040,7 +1040,12 @@ def _validate_priority_mechanism_map(resource):
             all_mapped_prios.add(k)
     for task in resource.tasks:
         prio = getattr(task, 'scheduling_parameter', None)
+        # Skip forwarding tasks (scheduling_parameter in reserved negative range)
         if prio is not None and prio not in all_mapped_prios:
+            # Check if this is a forwarding task
+            from . import model
+            if model.ForwardingTask.is_forwarding_task(task):
+                continue  # Skip validation for forwarding tasks
             raise ValueError(
                 "Resource '%s': task '%s' has scheduling_parameter=%d "
                 "which is not in the priority_mechanism_map" %
@@ -1065,12 +1070,19 @@ def _validate_tsn_chain_consistency(tasks_in_chain):
        - For TAS: tas_cycle_time, tas_window_time, and is_express (if preemption is used)
        - For CQF: cqf_cycle_time
 
+    ForwardingTask tasks are excluded from all TSN consistency checks, as they
+    do not participate in TSN mechanisms.
+
     :param tasks_in_chain: List of tasks in the chain
     :type tasks_in_chain: list
     :raises ValueError: If TSN mechanism consistency constraint is violated
     """
+    # Import here to avoid circular dependency
+    from . import model
+
     tsn_tasks = [t for t in tasks_in_chain
-                 if t.resource is not None and getattr(t.resource, 'is_tsn_resource', False)]
+                 if t.resource is not None and getattr(t.resource, 'is_tsn_resource', False)
+                 and not model.ForwardingTask.is_forwarding_task(t)]  # Skip forwarding tasks
 
     if not tsn_tasks:
         return
