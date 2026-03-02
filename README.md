@@ -8,6 +8,7 @@ A unified WCRT (Worst-Case Response Time) analysis framework for TSN (Time-Sensi
 
 - WCRT analysis for major TSN scheduling mechanisms
 - Support for hybrid scheduling combinations
+- Forward end-to-end delay analysis for AFDX networks (FP/FIFO with/without serialization)
 - Built on pyCPA, easy to extend with new models
 
 ---
@@ -65,6 +66,31 @@ Key functions:
 | CBS | Partial | Credit-Based Shaper (IEEE 802.1Qav) |
 | CQF | Partial | Cyclic Queuing and Forwarding (IEEE 802.1Qci) |
 | ATS | Partial | Asynchronous Traffic Shaping (IEEE 802.1Qcr) |
+
+### 6. AFDX Forward Analysis (FP/FIFO)
+
+**FPFIFOForwardAnalyzer** implements the forward end-to-end delay analysis for AFDX networks with FP/FIFO scheduling, based on Benammar et al. (ETFA 2017). This analysis is independent of pyCPA's CPA loop and operates directly on pyCPA model objects.
+
+- **Theorem 2**: Forward analysis without serialization effect — computes worst-case backlog using workload function W(t) with HP/SP/LP interference
+- **Theorem 4**: Forward analysis with serialization effect — tighter bounds by exploiting per-input-link serialization constraints
+- **Multi-pass propagation**: Iterates Smax/Smin propagation until convergence (up to 20 passes)
+- **Multicast support**: Shared task objects on common path segments for correct interference counting
+
+Key classes:
+- **`FPFIFOForwardAnalyzer`**: Main analyzer class, accepts a `model.System` and provides `analyze_all()` / `analyze_path()` methods
+- **`AnalysisResult`**: Per-path result containing hop-by-hop details and end-to-end delay bound
+- **`HopResult`**: Per-hop result with Smax, Smin, and backlog values
+
+Usage:
+```python
+from forward_analysis import FPFIFOForwardAnalyzer
+
+analyzer = FPFIFOForwardAnalyzer(system)
+results = analyzer.analyze_all(with_serialization=True)
+analyzer.print_results(results)
+```
+
+See `examples/afdx_forward_analysis/example_fpfifo.py` for a complete case study reproducing Table II from the paper.
 
 ---
 
@@ -580,6 +606,9 @@ if __name__ == "__main__":
 - **TASSchedulerE2E** (E2E correction):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
 
+- **FPFIFOForwardAnalyzer** (AFDX Forward Analysis):
+  Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
+
 ---
 
 ## Compatibility and Maintenance Fixes
@@ -634,6 +663,7 @@ The following features are planned for future development:
 
 - 主要 TSN 调度机制的 WCRT 分析
 - 支持混合调度组合
+- AFDX 网络前向端到端延迟分析（FP/FIFO，含/不含序列化效应）
 - 基于 pyCPA，易于扩展新模型
 
 ## TSN 功能详细说明
@@ -689,6 +719,31 @@ The following features are planned for future development:
 | CBS | 部分支持 | 基于信用的整形器 (IEEE 802.1Qav) |
 | CQF | 部分支持 | 循环排队转发 (IEEE 802.1Qci) |
 | ATS | 部分支持 | 异步流量整形 (IEEE 802.1Qcr) |
+
+### 6. AFDX 前向分析 (FP/FIFO)
+
+**FPFIFOForwardAnalyzer** 实现了 AFDX 网络中 FP/FIFO 调度策略下的前向端到端延迟分析方法，基于 Benammar 等人 (ETFA 2017) 的论文。该分析独立于 pyCPA 的 CPA 循环，直接操作 pyCPA 模型对象。
+
+- **定理 2 (Theorem 2)**：不含序列化效应的前向分析 — 使用工作负载函数 W(t) 计算最坏情况积压量，考虑 HP/SP/LP 干扰
+- **定理 4 (Theorem 4)**：含序列化效应的前向分析 — 利用每输入链路的序列化约束获得更紧的延迟上界
+- **多轮传播**：迭代 Smax/Smin 传播直至收敛（最多 20 轮）
+- **多播支持**：在共享路径段上共享 Task 对象，确保干扰计算正确
+
+核心类：
+- **`FPFIFOForwardAnalyzer`**：主分析器类，接受 `model.System`，提供 `analyze_all()` / `analyze_path()` 方法
+- **`AnalysisResult`**：单条路径的分析结果，包含逐跳详情和端到端延迟上界
+- **`HopResult`**：单跳结果，包含 Smax、Smin 和积压量
+
+使用方式：
+```python
+from forward_analysis import FPFIFOForwardAnalyzer
+
+analyzer = FPFIFOForwardAnalyzer(system)
+results = analyzer.analyze_all(with_serialization=True)
+analyzer.print_results(results)
+```
+
+完整案例请参见 `examples/afdx_forward_analysis/example_fpfifo.py`，该示例复现了论文 Table II 的全部结果。
 
 ## 依赖项
 
@@ -1189,6 +1244,9 @@ if __name__ == "__main__":
 
 - **TASSchedulerE2E** (E2E 修正和抢占支持):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
+
+- **FPFIFOForwardAnalyzer** (AFDX 前向分析):
+  Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
 ## 兼容性与维护修复
 
