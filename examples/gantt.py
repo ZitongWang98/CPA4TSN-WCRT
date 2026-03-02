@@ -24,7 +24,11 @@ except ImportError:
 
 from pycpa import schedulers
 from pycpa import model
-from pycpa import simulation
+try:
+    from pycpa import simulation
+except ImportError:
+    print("simpy not available, please install it via: pip install simpy")
+    exit(0)
 from pycpa import analysis
 from pycpa import plot
 from pycpa import options

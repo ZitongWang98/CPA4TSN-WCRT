@@ -406,7 +406,7 @@ class Scheduler(object):
     
     def response_time(self, task, q, details=None, **kwargs):
         """ Maximum Response Time for q activations of a task."""
-        return self.b_plus(task, q) - task.in_event_model.delta_min(q)
+        return self.b_plus(task, q, **kwargs) - task.in_event_model.delta_min(q)
 
 
 def analyze_task(task, task_results):
@@ -1081,8 +1081,8 @@ def _validate_tsn_chain_consistency(tasks_in_chain):
     from . import model
 
     tsn_tasks = [t for t in tasks_in_chain
-                 if t.resource is not None and getattr(t.resource, 'is_tsn_resource', False)
-                 and not model.ForwardingTask.is_forwarding_task(t)]  # Skip forwarding tasks
+                 if hasattr(t, 'resource') and t.resource is not None and getattr(t.resource, 'is_tsn_resource', False)
+                 and not model.ForwardingTask.is_forwarding_task(t)]  # Skip forwarding tasks and junctions
 
     if not tsn_tasks:
         return

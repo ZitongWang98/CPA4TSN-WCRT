@@ -20,13 +20,19 @@ except ImportError:
     print("matplotlib not available")
     exit(0)
 
+import shutil
+
 from pycpa import model
 from pycpa import plot
 
 # only type 1 fonts
 matplotlib.rcParams['ps.useafm'] = True
 matplotlib.rcParams['pdf.use14corefonts'] = True
-matplotlib.rcParams['text.usetex'] = True
+if shutil.which('latex'):
+    matplotlib.rcParams['text.usetex'] = True
+else:
+    print("LaTeX not found, falling back to non-TeX rendering")
+    matplotlib.rcParams['text.usetex'] = False
 
 P = 30
 J = 60  # 5

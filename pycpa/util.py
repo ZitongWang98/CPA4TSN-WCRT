@@ -28,6 +28,10 @@ import itertools
 import functools
 from collections import deque
 
+# fractions.gcd was deprecated in Python 3.5 and removed in Python 3.9
+# Use math.gcd when available, fall back to fractions.gcd for older versions
+_gcd = math.gcd if hasattr(math, 'gcd') else fractions.gcd
+
 logger = logging.getLogger("pycpa")
 
 # time bases
@@ -297,16 +301,16 @@ def time_to_cycles(value, freq, base_time, rounding="ceil"):
 
 def gcd(a, b):
     """Return greatest common divisor using Euclid's Algorithm."""
-    return fractions.gcd(a, b)
-
-def lcm(a, b):
-    """ Return lowest common multiple."""
-    return (a * b) / gcd(a, b)
+    return _gcd(a, b)
 
 
 def GCD(terms):
     """ Return gcd of a list of numbers."""
-    return functools.reduce(fractions.gcd, terms)
+    return functools.reduce(_gcd, terms)
+
+def lcm(a, b):
+    """ Return lowest common multiple."""
+    return (a * b) / gcd(a, b)
 
 
 def LCM(terms):

@@ -14,7 +14,11 @@ XLS parser example
 """
 
 from pycpa import util
-from pycpa import xls_parser
+try:
+    from pycpa import xls_parser
+except ImportError:
+    print("xlrd not available, please install it via: pip install xlrd")
+    exit(0)
 
 import sys
 

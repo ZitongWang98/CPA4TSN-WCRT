@@ -6,9 +6,12 @@ from pycpa import nxamalthea as nxamp
 
 from pycpa import options
 
+import os
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+
 
 def test():
-    amp = nxamp.NxAmaltheaParser('../data/Waters_Challenge.xml', scale=0.7)
+    amp = nxamp.NxAmaltheaParser(os.path.join(_script_dir, '../data/Waters_Challenge.xml'), scale=0.7)
 
     G = amp.parse_runnables_and_labels_to_nx()
     G = amp.parse_tasks_and_cores_to_nx()
@@ -26,14 +29,14 @@ def test():
             print("    b_wcrt=%s" % (task_results[t].b_wcrt_str()))
 
 def export_to_csv():
-    amp = nxamp.NxAmaltheaParser('../data/Waters_Challenge.xml', scale=0.7)
+    amp = nxamp.NxAmaltheaParser(os.path.join(_script_dir, '../data/Waters_Challenge.xml'), scale=0.7)
 
     G = amp.parse_runnables_and_labels_to_nx()
     G = amp.parse_tasks_and_cores_to_nx()
 
     a = nxamp.NxConverter(G)
 
-    a.write_to_csv('../data/Waters_Challenge.csv')
+    a.write_to_csv(os.path.join(_script_dir, '../data/Waters_Challenge.csv'))
 
 if __name__ == '__main__':
     test()

@@ -188,13 +188,13 @@ class NxConverter(object):
        for n,d in self.G.nodes(data=True):
            if d['TYPE'] == RESSOURCE:
                #for the time being we only support SPP
-               #r = s.bind_resource(model.Resource(self.G.node[n], schedulers.SPPScheduler()))
+               #r = s.bind_resource(model.Resource(self.G.nodes[n], schedulers.SPPScheduler()))
                r = s.bind_resource(model.Resource(n, schedulers.SPPScheduler()))
                # get the neigbors of n that have a MAPPING to a task
                for u,v,d_edge in self.G.out_edges(n,data=True):
                    if d_edge[TYPE] == MAPPING:
                        #v is a task
-                       assert (self.G.node[v][TYPE] == TASK )
+                       assert (self.G.nodes[v][TYPE] == TASK )
                        task_params = self.get_task_params(v,reverse_prios)
                        t = r.bind_task(model.Task(name=v, **task_params))
                        t.in_event_model = self.construct_event_model(v)
@@ -210,7 +210,7 @@ class NxConverter(object):
         if reverse_prios == True:
             t_params['scheduling_parameter'] = self.get_reverse_prio(t)
         else:
-            t_params['scheduling_parameter'] = self.G.node[t]['scheduling_parameter']
+            t_params['scheduling_parameter'] = self.G.nodes[t]['scheduling_parameter']
 
         #Filter out a subgraph that only contains runnables, tasks and mapping edges
         tasks_runnables = [ n for n,d in self.G.nodes(data=True) if (d[TYPE] ==
@@ -218,10 +218,10 @@ class NxConverter(object):
         H = self.G.subgraph( tasks_runnables )
         #Iterate over the runnables and compute WCET/BCET as a sum over the neigbors!
         for u,v,d in H.out_edges(t,data=True):
-            if (d[TYPE] == MAPPING and self.G.node[v][TYPE] == RUNNABLE):
+            if (d[TYPE] == MAPPING and self.G.nodes[v][TYPE] == RUNNABLE):
                 #print(u,v,d)
-                t_params['wcet'] = int(self.G.node[v]['wcet']) + int(t_params['wcet'])
-                t_params['bcet'] = int(self.G.node[v]['bcet']) + int(t_params['bcet'])
+                t_params['wcet'] = int(self.G.nodes[v]['wcet']) + int(t_params['wcet'])
+                t_params['bcet'] = int(self.G.nodes[v]['bcet']) + int(t_params['bcet'])
 
         #print(t_params)
         return t_params
@@ -230,13 +230,13 @@ class NxConverter(object):
         #TODO: In principle we would have to check whether the task in fact has an event model
         # or whether it is activated by another task; in that case the dict key event_model must not
         # exist
-        if self.G.node[task]['event_model']['EMType'] == 'Periodic':
-            s_param = self.G.node[task]['event_model']
+        if self.G.nodes[task]['event_model']['EMType'] == 'Periodic':
+            s_param = self.G.nodes[task]['event_model']
             P = util.time_to_time( int(s_param['value']) , base_in=util.str_to_time_base(s_param['unit']), base_out=self.cpa_base)
             return model.PJdEventModel(P=P, J=0)
 
-        elif self.G.node[task]['event_model']['EMType'] == 'Sporadic':
-            s_param = self.G.node[task]['event_model']['lowerBound']
+        elif self.G.nodes[task]['event_model']['EMType'] == 'Sporadic':
+            s_param = self.G.nodes[task]['event_model']['lowerBound']
             P = util.time_to_time( int(s_param['value']) , base_in=util.str_to_time_base(s_param['unit']), base_out=self.cpa_base)
             return model.PJdEventModel(P=P, J=0)
         else:
@@ -262,16 +262,16 @@ class NxConverter(object):
         """ Instead of return a cpa event model just return the parameters
             WARNING: Only returns periods at the moment
         """
-        if self.G.node[task]['event_model']['EMType'] == 'Periodic':
-            s_param = self.G.node[task]['event_model']
+        if self.G.nodes[task]['event_model']['EMType'] == 'Periodic':
+            s_param = self.G.nodes[task]['event_model']
             P = util.time_to_time( int(s_param['value']) , base_in=util.str_to_time_base(s_param['unit']), base_out=self.cpa_base)
             return (P,0)
 
-        elif self.G.node[task]['event_model']['EMType'] == 'Sporadic':
-            lB = self.G.node[task]['event_model']['lowerBound']
-            uB = self.G.node[task]['event_model']['upperBound']
+        elif self.G.nodes[task]['event_model']['EMType'] == 'Sporadic':
+            lB = self.G.nodes[task]['event_model']['lowerBound']
+            uB = self.G.nodes[task]['event_model']['upperBound']
             #TODO!
-            s_param = self.G.node[task]['event_model']['lowerBound']
+            s_param = self.G.nodes[task]['event_model']['lowerBound']
             P = util.time_to_time( int(s_param['value']) , base_in=util.str_to_time_base(s_param['unit']), base_out=self.cpa_base)
             return (P,0)
         else:
@@ -291,7 +291,7 @@ class NxConverter(object):
                    for u,v,d_edge in self.G.out_edges(n,data=True):
                        if d_edge[TYPE] == MAPPING:
                            #v is a task (i.e. the name)
-                           assert (self.G.node[v][TYPE] == TASK )
+                           assert (self.G.nodes[v][TYPE] == TASK )
                            task_params = self.get_task_params(v,reverse_prios)
                            task_params['task_name'] = v
                            task_params['resource'] = n 
