@@ -582,6 +582,23 @@ if __name__ == "__main__":
 
 ---
 
+## Compatibility and Maintenance Fixes
+
+The following fixes improve compatibility with modern Python and dependency versions:
+
+| Module | Fix | Description |
+|--------|-----|-------------|
+| `analysis.py` | `response_time()` kwargs passthrough | Fixed `task_results` not being passed to `b_plus()` inside `response_time()`, causing `SPPSchedulerCorrelatedRox` and related schedulers to crash with `TypeError` |
+| `analysis.py` | Junction handling in TSN validation | Added `hasattr(t, 'resource')` check in `_validate_tsn_chain_consistency()` to skip Junction objects that lack a `resource` attribute |
+| `util.py` | `fractions.gcd` → `math.gcd` | `fractions.gcd` was deprecated in Python 3.5 and removed in Python 3.9. Now uses `math.gcd` with fallback to `fractions.gcd` for older versions |
+| `nxamalthea.py` | `G.node[]` → `G.nodes[]` | `G.node` was removed in networkx 3.x. Replaced with `G.nodes[]` which is compatible with both 2.x and 3.x |
+| `nx_test.py` | Relative path fix | Data file paths now use `__file__`-relative resolution instead of relying on the current working directory |
+| `gantt.py` | Missing `simpy` dependency | Graceful exit with install hint when `simpy` is not available |
+| `xls_parser_example.py` | Missing `xlrd` dependency | Graceful exit with install hint when `xlrd` is not available |
+| `plot_event_model.py` | Missing LaTeX | Falls back to non-TeX rendering when LaTeX is not installed |
+
+---
+
 ## Contributing
 
 Issues and pull requests are welcome.
@@ -1172,6 +1189,23 @@ if __name__ == "__main__":
 
 - **TASSchedulerE2E** (E2E 修正和抢占支持):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
+
+## 兼容性与维护修复
+
+以下修复提升了对现代 Python 版本和第三方依赖的兼容性：
+
+| 模块 | 修复内容 | 说明 |
+|------|---------|------|
+| `analysis.py` | `response_time()` 参数透传 | 修复 `response_time()` 内部调用 `b_plus()` 时未传递 `task_results`，导致 `SPPSchedulerCorrelatedRox` 等调度器崩溃 |
+| `analysis.py` | TSN 验证中的 Junction 处理 | 在 `_validate_tsn_chain_consistency()` 中添加 `hasattr(t, 'resource')` 检查，跳过没有 `resource` 属性的 Junction 对象 |
+| `util.py` | `fractions.gcd` → `math.gcd` | `fractions.gcd` 在 Python 3.5 中废弃，Python 3.9 中移除。现优先使用 `math.gcd`，旧版本回退到 `fractions.gcd` |
+| `nxamalthea.py` | `G.node[]` → `G.nodes[]` | `G.node` 在 networkx 3.x 中被移除，替换为兼容 2.x 和 3.x 的 `G.nodes[]` |
+| `nx_test.py` | 相对路径修复 | 数据文件路径改为基于 `__file__` 的相对路径，不再依赖当前工作目录 |
+| `gantt.py` | 缺少 `simpy` 依赖 | 当 `simpy` 不可用时优雅退出并提示安装命令 |
+| `xls_parser_example.py` | 缺少 `xlrd` 依赖 | 当 `xlrd` 不可用时优雅退出并提示安装命令 |
+| `plot_event_model.py` | 缺少 LaTeX | 当系统未安装 LaTeX 时自动回退到非 TeX 渲染 |
+
+---
 
 ## 贡献
 
