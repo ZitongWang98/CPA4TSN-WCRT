@@ -29,20 +29,36 @@ logger = logging.getLogger("pycpa")
 
 # --------------------------------------------------------------------------
 # Preemption constants (IEEE 802.3br / 802.1Qbu)
-# All times in microseconds assuming 1 Gbps link rate
+# Byte sizes are fixed by the standard; time conversions depend on link speed.
 # --------------------------------------------------------------------------
 MAX_NONPREEMPTABLE_FRAGMENT_BYTES = 143   # Minimum Ethernet frame that cannot be preempted
 MIN_FRAGMENT_BYTES = 84                    # Minimum fragment size (64B payload + 20B overhead)
 PREEMPTION_OVERHEAD_BYTES = 24             # IPG + preamble overhead per preemption
 
-def _bytes_to_us(nbytes, link_rate_gbps=1.0):
-    """Convert bytes to microseconds at given link rate."""
-    return nbytes * 8 / (link_rate_gbps * 1000)
 
-# Precomputed for 1 Gbps
-MAX_FRAGMENT_US = _bytes_to_us(MAX_NONPREEMPTABLE_FRAGMENT_BYTES)  # 143*8/1000 = 1.144
-MIN_FRAGMENT_US = _bytes_to_us(MIN_FRAGMENT_BYTES)                  # 84*8/1000 = 0.672
-OVERHEAD_US = _bytes_to_us(PREEMPTION_OVERHEAD_BYTES)               # 24*8/1000 = 0.192
+def _bytes_to_us(nbytes, linkspeed=1e9):
+    """Convert bytes to microseconds at given link speed (bps)."""
+    return nbytes * 8 / linkspeed * 1e6
+
+
+def _get_linkspeed(resource):
+    """Get link speed in bps from resource (default 1 Gbps)."""
+    return getattr(resource, 'linkspeed', 1e9)
+
+
+def _max_fragment_us(resource):
+    """Max non-preemptable fragment time (143B) at resource link speed."""
+    return _bytes_to_us(MAX_NONPREEMPTABLE_FRAGMENT_BYTES, _get_linkspeed(resource))
+
+
+def _min_fragment_us(resource):
+    """Min fragment time (84B) at resource link speed."""
+    return _bytes_to_us(MIN_FRAGMENT_BYTES, _get_linkspeed(resource))
+
+
+def _overhead_us(resource):
+    """Preemption overhead time (24B) at resource link speed."""
+    return _bytes_to_us(PREEMPTION_OVERHEAD_BYTES, _get_linkspeed(resource))
 
 
 def _get_traffic_class(task, resource):
@@ -69,13 +85,13 @@ def _cqf_cycle(task, resource):
     return None
 
 
-def _L_plus(C_plus):
+def _L_plus(C_plus, resource):
     """Lemma 1 (Luo2023 Eq.2): longest blocking of an express frame
     from a preemptable frame.
 
     L_i^+ = min(C_i^+, 143 bytes / r_TX)
     """
-    return min(C_plus, MAX_FRAGMENT_US)
+    return min(C_plus, _max_fragment_us(resource))
 
 
 def _num_fragments(payload_bytes):
@@ -163,7 +179,7 @@ class CQFPScheduler(analysis.Scheduler):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:  # preemptable
-                    candidate = _L_plus(ti.wcet)
+                    candidate = _L_plus(ti.wcet, resource)
                 else:
                     candidate = ti.wcet
                 i_lpb = max(i_lpb, candidate)
@@ -189,9 +205,9 @@ class CQFPScheduler(analysis.Scheduler):
                         i_hpb += ti.wcet * ti.in_event_model.eta_plus_closed(
                             _cqf_eta_window(w, t_cqf_ti))
                     elif not ti_cqf and not ti_express:  # hp N+P: term (c)
-                        i_hpb += _L_plus(ti.wcet) * ti.in_event_model.eta_plus_closed(w)
+                        i_hpb += _L_plus(ti.wcet, resource) * ti.in_event_model.eta_plus_closed(w)
                     elif ti_cqf and not ti_express:      # hp C+P: term (d)
-                        i_hpb += _L_plus(ti.wcet) * ti.in_event_model.eta_plus_closed(
+                        i_hpb += _L_plus(ti.wcet, resource) * ti.in_event_model.eta_plus_closed(
                             _cqf_eta_window(w, t_cqf_ti))
 
             w_new = i_lpb + i_spb + i_hpb
@@ -223,7 +239,7 @@ class CQFPScheduler(analysis.Scheduler):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:
-                    candidate = _L_plus(ti.wcet)
+                    candidate = _L_plus(ti.wcet, resource)
                 else:
                     candidate = ti.wcet
                 i_lpb = max(i_lpb, candidate)
@@ -250,9 +266,9 @@ class CQFPScheduler(analysis.Scheduler):
                         i_hpb += ti.wcet * ti.in_event_model.eta_plus_closed(
                             _cqf_eta_window(w_eff, t_cqf_ti))
                     elif not ti_cqf and not ti_express:  # hp N+P
-                        i_hpb += _L_plus(ti.wcet) * ti.in_event_model.eta_plus_closed(w_eff)
+                        i_hpb += _L_plus(ti.wcet, resource) * ti.in_event_model.eta_plus_closed(w_eff)
                     elif ti_cqf and not ti_express:      # hp C+P
-                        i_hpb += _L_plus(ti.wcet) * ti.in_event_model.eta_plus_closed(
+                        i_hpb += _L_plus(ti.wcet, resource) * ti.in_event_model.eta_plus_closed(
                             _cqf_eta_window(w_eff, t_cqf_ti))
 
             w_new = i_lpb + i_spb + phi + i_hpb
@@ -282,6 +298,7 @@ class CQFPScheduler(analysis.Scheduler):
         :param cqf_offset: 0 for N+P, t_CQF for C+P
         """
         phi = cqf_offset
+        overhead = _overhead_us(resource)
 
         # --- Lower-priority blocking term (a): max LP preemptable frame ---
         lpb_term_a = 0
@@ -298,8 +315,9 @@ class CQFPScheduler(analysis.Scheduler):
                 i_spb += ti.wcet * ti.in_event_model.eta_plus_closed(a)
 
         # Base blocking (before HP and SKD): Luo2023 Eq.4 term(a) + SPB
-        # For preemptable: response includes -MIN_FRAGMENT_US offset
-        base = q * task.wcet + lpb_term_a - MIN_FRAGMENT_US + i_spb + phi
+        # For preemptable: response includes -min_fragment offset
+        min_frag = _min_fragment_us(resource)
+        base = q * task.wcet + lpb_term_a - min_frag + i_spb + phi
 
         # ============================================================
         # Case 1: preemption overhead < express frame blocking
@@ -342,9 +360,9 @@ class CQFPScheduler(analysis.Scheduler):
                     t_cqf_ti = _cqf_cycle(ti, resource)
                     w_eff = w1 - phi if phi > 0 else w1
                     if not ti_cqf and ti_express:
-                        skd_abc += OVERHEAD_US * ti.in_event_model.eta_plus_closed(w_eff)
+                        skd_abc += overhead * ti.in_event_model.eta_plus_closed(w_eff)
                     elif ti_cqf and ti_express:
-                        skd_abc += OVERHEAD_US * min(
+                        skd_abc += overhead * min(
                             math.ceil(w_eff / t_cqf_ti) if t_cqf_ti else 0,
                             ti.in_event_model.eta_plus_closed(
                                 _cqf_eta_window(w_eff, t_cqf_ti)))
@@ -378,7 +396,7 @@ class CQFPScheduler(analysis.Scheduler):
         task_fragments = _num_fragments(task_payload)
         skd_self = q * task_fragments - 1  # term (b) self part
 
-        skd_d_fixed = OVERHEAD_US * (skd_fixed_lp + max(0, skd_self) + skd_fixed_sp)
+        skd_d_fixed = overhead * (skd_fixed_lp + max(0, skd_self) + skd_fixed_sp)
 
         w2 = base + skd_d_fixed
         while True:
@@ -422,7 +440,7 @@ class CQFPScheduler(analysis.Scheduler):
                             skd_hp += f * ti.in_event_model.eta_plus_closed(
                                 _cqf_eta_window(w_eff, t_cqf_ti))
 
-            w2_new = base + lpb_bc + i_hpb + skd_d_fixed + OVERHEAD_US * skd_hp
+            w2_new = base + lpb_bc + i_hpb + skd_d_fixed + overhead * skd_hp
             if w2 == w2_new:
                 break
             w2 = w2_new
@@ -439,7 +457,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         Returns w + C_last where C_last is:
         - wcet for express streams
-        - MIN_FRAGMENT_US for preemptable streams
+        - _min_fragment_us(resource) for preemptable streams
         This ensures b_plus(q) - b_plus(q-1) >= wcet (framework invariant).
 
         Dispatches to the appropriate traffic-class-specific method
@@ -470,7 +488,7 @@ class CQFPScheduler(analysis.Scheduler):
             if is_express:
                 c_last = task.wcet
             else:
-                c_last = MIN_FRAGMENT_US
+                c_last = _min_fragment_us(resource)
             r = w + c_last - a
 
             if r > r_final:

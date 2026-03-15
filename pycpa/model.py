@@ -1426,6 +1426,9 @@ class TSN_Resource(Resource):
         self.ats_scheduler_group = None
         self.ats_params_by_priority = None
 
+        # Link speed in bits per second (default: 1 Gbps)
+        self.linkspeed = kwargs.pop('linkspeed', 1e9)
+
         # Switch forwarding delay (in microseconds).
         # Can be a single value (bcet = wcet) or a tuple (bcet, wcet).
         self.forwarding_delay = kwargs.pop('forwarding_delay', 0)
