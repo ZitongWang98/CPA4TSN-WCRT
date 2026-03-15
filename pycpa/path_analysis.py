@@ -231,9 +231,9 @@ def _apply_cqf_e2e_correction(path, task_results, tasks, sum_wcrt):
     last_hop_wcrt = task_results[regular_tasks[-1]].wcrt
 
     # Eq.(3.29)-(3.31): E2E = N * T_CQF + (WCRT_last - T_CQF)
+    # Forwarding delay is NOT added: CQF cycle time already covers it.
     w_last_after_gate = last_hop_wcrt - t_cqf
-    forwarding_delay = sum(task_results[t].wcrt for t in forwarding_tasks)
-    corrected = N * t_cqf + w_last_after_gate + forwarding_delay
+    corrected = N * t_cqf + w_last_after_gate
 
     return min(sum_wcrt, corrected)
 
