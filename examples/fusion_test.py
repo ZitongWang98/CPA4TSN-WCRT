@@ -10,8 +10,8 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from pycpa import model, analysis
-from pycpa.schedulers_fusion import FusionScheduler
+from pycpa import model, analysis, path_analysis
+from pycpa.schedulers_fusion import FusionScheduler, FusionSchedulerE2E
 
 
 def make_fusion_resource(name="FusionPort"):
@@ -386,6 +386,91 @@ def test_skd_case1_ats_token():
     return True
 
 
+def _make_e2e_resource(name, sched_cls):
+    """Helper: fusion resource with TAS+ATS+CQF+FP for E2E tests."""
+    r = model.TSN_Resource(name, scheduler=sched_cls(), linkspeed=1e9)
+    r.priority_mechanism_map = {
+        7: 'TAS', 6: 'ATS', (5, 4): 'CQF',
+        3: None, 2: None,
+    }
+    r.tas_cycle_time = 500
+    r.tas_window_time_by_priority = {7: 100}
+    r.cqf_cycle_time_by_pair = {(5, 4): 500}
+    r.is_express_by_priority = {
+        7: True, 6: True, 5: True, 4: True, 3: True, 2: False,
+    }
+    return r
+
+
+def test_fusion_e2e():
+    """FusionSchedulerE2E must improve E2E over sum-of-WCRT for ST/CQF/NST.
+
+    3-hop paths with forwarding delays.  HP interferers on each hop ensure
+    gate-closed blocking exists for NST flows.
+    """
+    flow_configs = {
+        'ST':    dict(wcet=10, prio=7, tas_aligned=True),
+        'CQF_E': dict(wcet=8,  prio=5, tas_aligned=None),
+        'NC_E':  dict(wcet=15, prio=3, tas_aligned=False),
+        'NC_P':  dict(wcet=20, prio=2, tas_aligned=False, payload=400),
+    }
+
+    print("  FusionSchedulerE2E vs FusionScheduler (3 hops):")
+    for label, cfg in flow_configs.items():
+        results_pair = {}
+        for tag, sched_cls in [('basic', FusionScheduler),
+                                ('e2e', FusionSchedulerE2E)]:
+            s = model.System()
+            tasks = []
+            for i in range(3):
+                r = _make_e2e_resource(f'SW{i}', sched_cls)
+                s.bind_resource(r)
+
+                # ST + ATS HP interferers on every hop
+                t_st = model.Task(f'ST_{i}', wcet=10, bcet=10,
+                                  scheduling_parameter=7)
+                t_st.in_event_model = model.PJdEventModel(P=500, J=0)
+                r.bind_task(t_st)
+                t_ats = model.Task(f'ATS_{i}', wcet=12, bcet=12,
+                                   scheduling_parameter=6,
+                                   CIR=100e6, CBS=12000, src_port='A')
+                t_ats.in_event_model = model.PJdEventModel(P=200, J=0)
+                r.bind_task(t_ats)
+
+                kw = dict(wcet=cfg['wcet'], bcet=cfg['wcet'],
+                          scheduling_parameter=cfg['prio'])
+                if 'payload' in cfg:
+                    kw['payload'] = cfg['payload']
+                t = model.Task(f'{label}_{i}', **kw)
+                t.in_event_model = model.PJdEventModel(P=2000, J=0)
+                r.bind_task(t)
+                tasks.append(t)
+
+                if i < 2:
+                    ft = model.ForwardingTask(f'FW_{i}', wcet=5, bcet=5)
+                    r.bind_task(ft)
+                    tasks.append(ft)
+
+            p = model.Path(f'path_{label}', tasks)
+            if cfg['tas_aligned'] is not None:
+                p.tas_aligned = cfg['tas_aligned']
+            s.bind_path(p)
+            res = analysis.analyze_system(s)
+            _, e2e = path_analysis.end_to_end_latency(p, res, 1)
+            results_pair[tag] = e2e
+
+        basic = results_pair['basic']
+        opt = results_pair['e2e']
+        print(f"    {label:6s}: sum_wcrt={basic:10.3f}  E2E={opt:10.3f}  "
+              f"improvement={basic - opt:.3f}")
+        assert opt <= basic, (
+            f"{label}: E2E ({opt}) should be <= sum_wcrt ({basic})")
+        if label in ('ST', 'CQF_E', 'NC_E', 'NC_P'):
+            assert opt < basic, (
+                f"{label}: E2E ({opt}) should be strictly < sum_wcrt ({basic})")
+    return True
+
+
 if __name__ == '__main__':
     tests = [
         ("ST flow", test_st_flow),
@@ -399,6 +484,7 @@ if __name__ == '__main__':
         ("ATS+P SPB Eq.3.41", test_ats_preemptable_spb_eq341),
         ("ATS+E HPB CQF interferer", test_ats_express_hpb_cqf_interferer),
         ("SKD Case1 ATS token", test_skd_case1_ats_token),
+        ("Fusion E2E", test_fusion_e2e),
     ]
 
     passed = 0

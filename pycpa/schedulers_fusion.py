@@ -121,6 +121,7 @@ class FusionScheduler(analysis.Scheduler):
     def __init__(self):
         analysis.Scheduler.__init__(self)
         self._arrival_time_final = 0
+        self._last_gate_closed_blocking = 0
 
     # ------------------------------------------------------------------
     # Arrival time candidate set
@@ -180,7 +181,9 @@ class FusionScheduler(analysis.Scheduler):
         if open_time <= 0:
             return 0
         load = spb + task.wcet
-        return math.ceil(load / open_time) * (tas_window_total + guard_band)
+        gb = math.ceil(load / open_time) * (tas_window_total + guard_band)
+        self._last_gate_closed_blocking = gb
+        return gb
 
     # ------------------------------------------------------------------
     # ST flow (Fig.3.27 top branch)
@@ -203,6 +206,7 @@ class FusionScheduler(analysis.Scheduler):
                 (spb + task.wcet) / (tas_window - max_st_wcet)) * gate_closed
         else:
             schb = 0
+        self._last_gate_closed_blocking = schb
         return spb + schb
 
     # ------------------------------------------------------------------
@@ -485,8 +489,10 @@ class FusionScheduler(analysis.Scheduler):
         aiq = self._build_arrival_set(task, q)
         r_final = 0
         w_final = 0
+        gcb_final = 0
 
         for a in aiq:
+            self._last_gate_closed_blocking = 0
             if mech_task == 'TAS':
                 w = self._w_st(task, q, a, resource)
             elif exp_task:
@@ -500,7 +506,9 @@ class FusionScheduler(analysis.Scheduler):
                 r_final = r
                 w_final = w + c_last
                 self._arrival_time_final = a
+                gcb_final = self._last_gate_closed_blocking
 
+        self._last_gate_closed_blocking = gcb_final
         return w_final
 
     def response_time(self, task, q, w, details=None, **kwargs):
@@ -523,3 +531,66 @@ class FusionScheduler(analysis.Scheduler):
         if task.in_event_model.delta_min(q + 1) >= w:
             return True
         return False
+
+
+class FusionSchedulerE2E(FusionScheduler):
+    """Fusion scheduler with E2E multi-hop correction support.
+
+    Same per-hop WCRT as FusionScheduler.  Additionally records attributes
+    into task_results so that path_analysis can apply E2E corrections:
+
+    - ST flows: TAS E2E correction (same as TASSchedulerE2E)
+    - CQF flows (C+E, C+P): CQF E2E correction = (N-1)*T_CQF + WCRT_last
+    - Other NST flows (ATS+E, NC+E, NC+P): TAS gate-closed E2E correction
+      (treated as NST in TASSchedulerE2E)
+    """
+
+    def b_plus(self, task, q, details=None, **kwargs):
+        w = FusionScheduler.b_plus(self, task, q, details=details, **kwargs)
+
+        task_results = kwargs.get('task_results')
+        if task_results is None or task not in task_results or details is None:
+            return w
+
+        if model.ForwardingTask.is_forwarding_task(task):
+            task_results[task].gate_closed_duration = 0
+            task_results[task].non_gate_closed = task.wcet
+            return w
+
+        resource = task.resource
+        mech_task, _ = _get_traffic_class(task, resource)
+
+        if mech_task == 'CQF':
+            # CQF E2E: record cycle time for path_analysis
+            task_results[task].cqf_cycle_time = _cqf_cycle(task, resource)
+            return w
+
+        # ST and NST flows: TAS gate-closed E2E correction
+        gcb = self._last_gate_closed_blocking
+        task_results[task].non_gate_closed = w - gcb
+
+        if mech_task == 'TAS':
+            tas_cycle = resource.effective_tas_cycle_time(task.scheduling_parameter)
+            tas_window = resource.effective_tas_window_time(task.scheduling_parameter)
+            # For ST: max_st_wcet as guard band (same logic as _w_st)
+            max_st_wcet = task.wcet
+            for ti in _get_interferers(task):
+                if ti.scheduling_parameter == task.scheduling_parameter:
+                    max_st_wcet = max(max_st_wcet, ti.wcet)
+            task_results[task].gate_closed_duration = tas_cycle - tas_window + max_st_wcet
+            task_results[task].tas_available_window = tas_window
+        else:
+            # NST (ATS+E, NC+E, NC+P): gate_closed = sum(TAS windows) + guard_band
+            tw_sum = _tas_gate_closed_duration(resource)
+            guard_band = _tas_guard_band(task, resource)
+            task_results[task].gate_closed_duration = tw_sum + guard_band
+            tc = resource.effective_tas_cycle_time()
+            task_results[task].tas_available_window = tc - tw_sum - guard_band
+
+        return w
+
+    def response_time(self, task, q, w, details=None, **kwargs):
+        if model.ForwardingTask.is_forwarding_task(task):
+            return task.wcet
+        return FusionScheduler.response_time(self, task, q, w,
+                                             details=details, **kwargs)

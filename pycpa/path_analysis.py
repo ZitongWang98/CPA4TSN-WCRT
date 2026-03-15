@@ -58,6 +58,7 @@ def _is_tas_e2e_path(path_tasks, task_results):
         - has a resource with a scheduler that is an instance of TASSchedulerE2E
     """
     from . import schedulers
+    from . import schedulers_fusion
     for t in path_tasks:
         if not isinstance(t, model.Task) or t not in task_results:
             return False
@@ -65,7 +66,8 @@ def _is_tas_e2e_path(path_tasks, task_results):
         if res is None:
             return False
         sched = getattr(res, 'scheduler', None)
-        if not isinstance(sched, schedulers.TASSchedulerE2E):
+        if not isinstance(sched, (schedulers.TASSchedulerE2E,
+                                  schedulers_fusion.FusionSchedulerE2E)):
             return False
     return True
 
@@ -219,10 +221,12 @@ def _apply_cqf_e2e_correction(path, task_results, tasks, sum_wcrt):
     if len(regular_tasks) < 2:
         return sum_wcrt
 
-    # All regular tasks must use CQFPSchedulerE2E and have cqf_cycle_time
+    # All regular tasks must use CQFPSchedulerE2E or FusionSchedulerE2E and have cqf_cycle_time
+    from . import schedulers_fusion
     for t in regular_tasks:
         sched = getattr(getattr(t, 'resource', None), 'scheduler', None)
-        if not isinstance(sched, schedulers_cqfp.CQFPSchedulerE2E):
+        if not isinstance(sched, (schedulers_cqfp.CQFPSchedulerE2E,
+                                  schedulers_fusion.FusionSchedulerE2E)):
             return sum_wcrt
         if getattr(task_results[t], 'cqf_cycle_time', None) is None:
             return sum_wcrt
