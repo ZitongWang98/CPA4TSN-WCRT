@@ -962,50 +962,57 @@ def test_map_invalid_missing_cbs_idleslope():
 
 
 def test_map_invalid_missing_ats_params():
-    """MAP-12: ATS priority missing from ats_params_by_priority."""
+    """MAP-12: ATS task missing per-flow CIR/CBS → scheduler raises ValueError."""
     print("\n" + "="*60)
-    print("Test MAP-12: Missing ATS Params for Priority (should fail)")
+    print("Test MAP-12: ATS Task Missing CIR/CBS (should fail at b_plus)")
     print("="*60)
 
     options.init_pycpa()
     s = model.System()
-    r = s.bind_resource(model.TSN_Resource("PortBad8", schedulers.SPPScheduler(),
+    from pycpa import schedulers_ats
+    r = s.bind_resource(model.TSN_Resource("PortBad8",
+        schedulers_ats.ATSScheduler(),
         priority_mechanism_map={4: 'ATS'},
     ))
 
+    # Task has no CIR/CBS — scheduler should catch this
     t = model.Task('T1', 1, 2, 4)
     r.bind_task(t)
     t.in_event_model = model.PJdEventModel(P=10000, J=0)
 
     try:
-        results = analysis.analyze_system(s)
+        r.scheduler.b_plus(t, 1)
         print("FAILED: Should have raised ValueError!")
     except ValueError as e:
         print(f"SUCCESS: Expected error caught: {e}")
 
 
 def test_map_invalid_ats_incomplete_params():
-    """MAP-13: ATS with incomplete parameter dict."""
+    """MAP-13: ATS resource-level ats_params_by_priority is optional;
+    per-flow params on Task are the primary mechanism."""
     print("\n" + "="*60)
-    print("Test MAP-13: Incomplete ATS Params (should fail)")
+    print("Test MAP-13: ATS Resource-Level Params Optional (should pass)")
     print("="*60)
 
     options.init_pycpa()
     s = model.System()
-    r = s.bind_resource(model.TSN_Resource("PortBad9", schedulers.SPPScheduler(),
+    from pycpa import schedulers_ats
+    r = s.bind_resource(model.TSN_Resource("PortBad9",
+        schedulers_ats.ATSScheduler(),
         priority_mechanism_map={4: 'ATS'},
         ats_params_by_priority={4: {'cir': 2000000, 'cbs': 10000}},
     ))
 
-    t = model.Task('T1', 1, 2, 4)
+    # Per-flow params on Task take precedence
+    t = model.Task('T1', 1, 2, 4, CIR=2000000, CBS=10000)
     r.bind_task(t)
     t.in_event_model = model.PJdEventModel(P=10000, J=0)
 
     try:
         results = analysis.analyze_system(s)
-        print("FAILED: Should have raised ValueError!")
+        print("SUCCESS: Analysis completed without errors!")
     except ValueError as e:
-        print(f"SUCCESS: Expected error caught: {e}")
+        print(f"FAILED: Unexpected error: {e}")
 
 
 def test_map_invalid_cqf_tas_odd_multiple():

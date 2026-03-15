@@ -23,6 +23,8 @@ This project implements the following TSN (Time-Sensitive Networking) related fu
 |-----------|-------------|
 | **TASScheduler** | Time-Aware Shaper scheduler based on IEEE 802.1Qbv |
 | **TASSchedulerE2E** | E2E-optimized TAS scheduler supporting end-to-end latency correction for multi-hop scenarios |
+| **CQFPScheduler** | Cyclic Queuing and Forwarding with Frame Preemption (IEEE 802.1Qch + 802.1Qbu), 4 traffic classes (N+E, N+P, C+E, C+P) |
+| **ATSScheduler** | Asynchronous Traffic Shaping scheduler (IEEE 802.1Qcr), per-flow token bucket with iterative eligible time computation |
 
 ### 2. TSN Resource Model
 
@@ -64,8 +66,9 @@ Key functions:
 |-----------|--------|-------------|
 | TAS | Supported | Time-Aware Shaper (IEEE 802.1Qbv) |
 | CBS | Partial | Credit-Based Shaper (IEEE 802.1Qav) |
-| CQF | Partial | Cyclic Queuing and Forwarding (IEEE 802.1Qci) |
-| ATS | Partial | Asynchronous Traffic Shaping (IEEE 802.1Qcr) |
+| CQF | Supported | Cyclic Queuing and Forwarding (IEEE 802.1Qch) |
+| ATS | Supported | Asynchronous Traffic Shaping (IEEE 802.1Qcr) |
+| Frame Preemption | Supported | IEEE 802.1Qbu (integrated in CQFPScheduler and TASSchedulerE2E) |
 
 ### 6. AFDX Forward Analysis (FP/FIFO)
 
@@ -381,6 +384,121 @@ lmin, lmax = path_analysis.end_to_end_latency(path, results, 1)
 print(f"E2E: min={lmin} us, max={lmax} us")
 ```
 
+### ATSScheduler Usage Example
+
+**ATSScheduler** implements IEEE 802.1Qcr Asynchronous Traffic Shaping with per-flow token bucket shaping. ATS parameters (CIR, CBS) are set on individual Task objects. The `src_port` (scheduler group identifier) is automatically derived from the network topology.
+
+```python
+from pycpa import model, analysis, schedulers_ats, options
+
+options.init_pycpa()
+s = model.System()
+
+# Create ATS resource: priority 6 uses ATS, priority 4 uses normal SP
+r = s.bind_resource(model.TSN_Resource(
+    "Switch1",
+    schedulers_ats.ATSScheduler(),
+    priority_mechanism_map={6: 'ATS', 4: None},
+))
+
+# ATS flow (priority 6) — CIR/CBS set per-flow on Task
+ats_task = model.Task('ATS_Flow', bcet=2, wcet=2, scheduling_parameter=6,
+                      CIR=100e6, CBS=4000)  # 100 Mbps, 4000 bits burst
+r.bind_task(ats_task)
+ats_task.in_event_model = model.PJdEventModel(P=50, J=0)
+
+# Normal SP flow (priority 4)
+sp_task = model.Task('SP_Flow', bcet=3, wcet=3, scheduling_parameter=4)
+r.bind_task(sp_task)
+sp_task.in_event_model = model.PJdEventModel(P=100, J=0)
+
+# Analyze
+results = analysis.analyze_system(s)
+print(f"ATS Flow: WCRT={results[ats_task].wcrt}")
+print(f"SP Flow:  WCRT={results[sp_task].wcrt}")
+```
+
+#### Multi-hop ATS with Automatic src_port
+
+In multi-hop scenarios, `src_port` is automatically derived from the upstream resource. Flows from the same upstream switch share a scheduler group.
+
+```python
+from pycpa import model, analysis, schedulers, schedulers_ats, options
+
+options.init_pycpa()
+s = model.System()
+
+# Upstream switches
+sw_up1 = s.bind_resource(model.Resource("SW_Up1", schedulers.SPNPScheduler()))
+sw_up2 = s.bind_resource(model.Resource("SW_Up2", schedulers.SPNPScheduler()))
+
+# Target switch with ATS
+sw = s.bind_resource(model.TSN_Resource(
+    "SW_Target", schedulers_ats.ATSScheduler(),
+    priority_mechanism_map={6: 'ATS'},
+))
+
+# Source tasks on upstream switches
+src_a = sw_up1.bind_task(model.Task('src_A', wcet=1, bcet=1, scheduling_parameter=6))
+src_a.in_event_model = model.PJdEventModel(P=50, J=0)
+src_b = sw_up2.bind_task(model.Task('src_B', wcet=1, bcet=1, scheduling_parameter=6))
+src_b.in_event_model = model.PJdEventModel(P=100, J=0)
+
+# Downstream tasks — no src_port needed, auto-derived from prev_task.resource
+flow_a = sw.bind_task(model.Task('Flow_A', wcet=2, bcet=2, scheduling_parameter=6,
+                                  CIR=100e6, CBS=4000))
+flow_b = sw.bind_task(model.Task('Flow_B', wcet=3, bcet=3, scheduling_parameter=6,
+                                  CIR=50e6, CBS=2000))
+
+# Link topology: Flow_A from SW_Up1, Flow_B from SW_Up2
+src_a.link_dependent_task(flow_a)
+src_b.link_dependent_task(flow_b)
+# flow_a and flow_b are in DIFFERENT scheduler groups (different upstream)
+
+results = analysis.analyze_system(s)
+for t in [flow_a, flow_b]:
+    print(f"{t.name}: WCRT={results[t].wcrt}")
+```
+
+### CQFPScheduler Usage Example
+
+**CQFPScheduler** implements CQF (IEEE 802.1Qch) with Frame Preemption (IEEE 802.1Qbu), supporting 4 traffic classes based on CQF/non-CQF and express/preemptable combinations.
+
+```python
+from pycpa import model, analysis, schedulers_cqfp, options
+
+options.init_pycpa()
+s = model.System()
+
+# CQF pair (7,6) with express priority 7, preemptable priority 6
+r = s.bind_resource(model.TSN_Resource(
+    "Switch1",
+    schedulers_cqfp.CQFPScheduler(),
+    priority_mechanism_map={(7, 6): 'CQF', 4: None},
+    cqf_cycle_time_by_pair={(7, 6): 500},
+    is_express_by_priority={7: True, 6: False, 4: True},
+))
+
+# CQF Express flow
+cqf_e = model.Task('CQF_Express', bcet=5, wcet=5, scheduling_parameter=7)
+r.bind_task(cqf_e)
+cqf_e.in_event_model = model.PJdEventModel(P=500, J=0)
+
+# CQF Preemptable flow
+cqf_p = model.Task('CQF_Preempt', bcet=8, wcet=8, scheduling_parameter=6)
+r.bind_task(cqf_p)
+cqf_p.in_event_model = model.PJdEventModel(P=500, J=0)
+
+# Non-CQF Express flow
+nst_e = model.Task('NST_Express', bcet=12, wcet=12, scheduling_parameter=4)
+r.bind_task(nst_e)
+nst_e.in_event_model = model.PJdEventModel(P=1000, J=0)
+
+results = analysis.analyze_system(s)
+for t in [cqf_e, cqf_p, nst_e]:
+    print(f"{t.name}: WCRT={results[t].wcrt}")
+```
+
 ---
 
 ## TSN Configuration Parameters
@@ -442,14 +560,23 @@ priority_mechanism_map={
 
 #### ATS (Asynchronous Traffic Shaping) Parameters
 
+ATS uses a **per-flow parameter model**: CIR and CBS are set on individual `Task` objects, and `src_port` is automatically derived from the network topology (via `prev_task.resource`).
+
+**Per-flow parameters (set on Task via kwargs):**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `CIR` | int/float | Yes | Committed Information Rate (bps) |
+| `CBS` | int/float | Yes | Committed Burst Size (bits) |
+| `src_port` | any hashable | No | Source port identifier for scheduler group. Auto-derived from `prev_task.resource` if not set |
+
+**Resource-level parameters (optional, on TSN_Resource):**
+
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `ats_cir` | int/float | No | Default Committed Information Rate |
 | `ats_cbs` | int/float | No | Default Committed Burst Size |
-| `ats_eir` | int/float | No | Default Excess Information Rate |
-| `ats_ebs` | int/float | No | Default Excess Burst Size |
-| `ats_scheduler_group` | int | No | Default scheduler group |
-| `ats_params_by_priority` | dict | Yes (when using ATS) | Per-priority ATS parameter mapping |
+| `ats_params_by_priority` | dict | No | Per-priority ATS parameter mapping (optional, per-flow Task params take precedence) |
 
 #### Switch Forwarding Delay Parameters
 
@@ -606,6 +733,10 @@ if __name__ == "__main__":
 - **TASSchedulerE2E** (E2E correction):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
 
+- **CQFPScheduler**:
+  Luo F, Wang Z, Guo Y, et al. Research on cyclic queuing and forwarding with preemption in time-sensitive networking[J]. IEEE Embedded Systems Letters, 2023, 16(2): 110-113.
+  Luo F, Wang Z, Ren Y, et al. Simulative assessments of cyclic queuing and forwarding with preemption in in-vehicle time-sensitive networking[C]//WCX SAE World Congress Experience. SAE Technical Paper, 2024.
+
 - **FPFIFOForwardAnalyzer** (Forward Analysis):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
@@ -639,12 +770,13 @@ Issues and pull requests are welcome.
 The following features are planned for future development:
 
 1. **Implement WCRT calculation for individual TSN mechanisms**:
-   - CQF (Cyclic Queuing and Forwarding)
-   - ATS (Asynchronous Traffic Shaping)
+   - ~~CQF (Cyclic Queuing and Forwarding)~~ ✅ CQFPScheduler
+   - ~~ATS (Asynchronous Traffic Shaping)~~ ✅ ATSScheduler
    - CBS (Credit-Based Shaper)
-   - Frame preemption
+   - ~~Frame preemption~~ ✅ Integrated in CQFPScheduler and TASSchedulerE2E
 
 2. **Progressively improve WCRT calculation for hybrid mechanisms**:
+   - FusionScheduler: Unified scheduler fusing TAS + CQF + ATS + Frame Preemption on a single resource (next)
    - Start with pairwise combinations
    - Extend support for multiple mechanism combinations
    - Eventually support full mechanism fusion scenarios
@@ -676,6 +808,8 @@ The following features are planned for future development:
 |-----------|------|
 | **TASScheduler** | 时间感知整形器 (Time-Aware Shaper) 调度器，基于 IEEE 802.1Qbv 标准 |
 | **TASSchedulerE2E** | E2E优化版TAS调度器，支持端到端延迟修正，适用于多跳场景 |
+| **CQFPScheduler** | 循环排队转发 + 帧抢占调度器 (IEEE 802.1Qch + 802.1Qbu)，支持 4 种流量类别 (N+E, N+P, C+E, C+P) |
+| **ATSScheduler** | 异步流量整形调度器 (IEEE 802.1Qcr)，逐流令牌桶整形，迭代式合格时间计算 |
 
 ### 2. TSN 资源模型
 
@@ -717,8 +851,9 @@ The following features are planned for future development:
 |-----|------|------|
 | TAS | 已支持 | 时间感知整形器 (IEEE 802.1Qbv) |
 | CBS | 部分支持 | 基于信用的整形器 (IEEE 802.1Qav) |
-| CQF | 部分支持 | 循环排队转发 (IEEE 802.1Qci) |
-| ATS | 部分支持 | 异步流量整形 (IEEE 802.1Qcr) |
+| CQF | 已支持 | 循环排队转发 (IEEE 802.1Qch) |
+| ATS | 已支持 | 异步流量整形 (IEEE 802.1Qcr) |
+| 帧抢占 | 已支持 | IEEE 802.1Qbu（集成于 CQFPScheduler 和 TASSchedulerE2E） |
 
 ### 6. AFDX 前向分析 (FP/FIFO)
 
@@ -1087,14 +1222,23 @@ priority_mechanism_map={
 
 #### ATS (Asynchronous Traffic Shaping) 参数
 
+ATS 采用**逐流参数模型**：CIR 和 CBS 设置在 `Task` 对象上，`src_port`（调度器组标识）从网络拓扑自动推导（通过 `prev_task.resource`）。
+
+**逐流参数（通过 Task kwargs 设置）：**
+
+| 参数 | 类型 | 必需 | 描述 |
+|-----|------|-----|------|
+| `CIR` | int/float | 是 | 承诺信息速率 (bps) |
+| `CBS` | int/float | 是 | 承诺突发大小 (bits) |
+| `src_port` | 任意可哈希类型 | 否 | 调度器组标识。未设置时从 `prev_task.resource` 自动推导 |
+
+**资源级参数（可选，设置在 TSN_Resource 上）：**
+
 | 参数 | 类型 | 必需 | 描述 |
 |-----|------|-----|------|
 | `ats_cir` | int/float | 否 | 默认承诺信息速率 |
 | `ats_cbs` | int/float | 否 | 默认承诺突发大小 |
-| `ats_eir` | int/float | 否 | 默认超出信息速率 |
-| `ats_ebs` | int/float | 否 | 默认超出突发大小 |
-| `ats_scheduler_group` | int | 否 | 默认调度器组 |
-| `ats_params_by_priority` | dict | 是（使用 ATS 时） | 按优先级 ATS 参数映射 |
+| `ats_params_by_priority` | dict | 否 | 按优先级 ATS 参数映射（可选，Task 上的逐流参数优先） |
 
 #### 交换机转发延迟参数
 
@@ -1245,6 +1389,10 @@ if __name__ == "__main__":
 - **TASSchedulerE2E** (E2E 修正和抢占支持):
   Luo F, Zhu L, Wang Z, et al. Schedulability analysis of time aware shaper with preemption supported in time-sensitive networks[J]. Computer Networks, 2025, 269: 111424.
 
+- **CQFPScheduler**:
+  Luo F, Wang Z, Guo Y, et al. Research on cyclic queuing and forwarding with preemption in time-sensitive networking[J]. IEEE Embedded Systems Letters, 2023, 16(2): 110-113.
+  Luo F, Wang Z, Ren Y, et al. Simulative assessments of cyclic queuing and forwarding with preemption in in-vehicle time-sensitive networking[C]//WCX SAE World Congress Experience. SAE Technical Paper, 2024.
+
 - **FPFIFOForwardAnalyzer** (前向分析):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
@@ -1274,12 +1422,13 @@ if __name__ == "__main__":
 以下功能计划在后续版本中实现：
 
 1. **实现单独 TSN 机制的 WCRT 计算**：
-   - CQF (循环排队转发)
-   - ATS (异步流量整形)
+   - ~~CQF (循环排队转发)~~ ✅ CQFPScheduler
+   - ~~ATS (异步流量整形)~~ ✅ ATSScheduler
    - CBS (基于信用的整形器)
-   - 帧抢占
+   - ~~帧抢占~~ ✅ 集成于 CQFPScheduler 和 TASSchedulerE2E
 
 2. **逐步完善机制融合下的各类流 WCRT 计算**：
+   - FusionScheduler：统一调度器，融合 TAS + CQF + ATS + 帧抢占于单一资源（下一步）
    - 从两两机制结合开始
    - 逐步扩展支持多机制组合
    - 最终支持全机制融合场景

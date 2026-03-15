@@ -978,23 +978,24 @@ def _validate_priority_mechanism_map(resource):
                     "idleslope_by_priority" % (resource.name, p))
 
     if ats_priorities:
+        # ATS parameters can be per-flow (on Task) or per-priority (on Resource).
+        # Only validate resource-level params if ats_params_by_priority is provided.
         ap_map = resource.ats_params_by_priority
-        required_ats_keys = {'cir', 'cbs', 'eir', 'ebs', 'scheduler_group'}
-        for p in ats_priorities:
-            if ap_map is None or p not in ap_map:
-                raise ValueError(
-                    "Resource '%s': priority %d is mapped to ATS but has no entry in "
-                    "ats_params_by_priority" % (resource.name, p))
-            params = ap_map[p]
-            if not isinstance(params, dict):
-                raise ValueError(
-                    "Resource '%s': ats_params_by_priority[%d] must be a dict, got %s" %
-                    (resource.name, p, type(params).__name__))
-            missing = required_ats_keys - set(params.keys())
-            if missing:
-                raise ValueError(
-                    "Resource '%s': ats_params_by_priority[%d] is missing keys: %s" %
-                    (resource.name, p, missing))
+        if ap_map is not None:
+            required_ats_keys = {'cir', 'cbs'}
+            for p in ats_priorities:
+                if p not in ap_map:
+                    continue  # params may be on individual tasks instead
+                params = ap_map[p]
+                if not isinstance(params, dict):
+                    raise ValueError(
+                        "Resource '%s': ats_params_by_priority[%d] must be a dict, got %s" %
+                        (resource.name, p, type(params).__name__))
+                missing = required_ats_keys - set(params.keys())
+                if missing:
+                    raise ValueError(
+                        "Resource '%s': ats_params_by_priority[%d] is missing keys: %s" %
+                        (resource.name, p, missing))
 
     # ---- 5.3 TSN parameter constraints ----
     if cqf_pairs and tas_priorities:
