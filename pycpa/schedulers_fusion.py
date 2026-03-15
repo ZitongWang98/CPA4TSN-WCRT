@@ -350,7 +350,7 @@ class FusionScheduler(analysis.Scheduler):
             spb_fixed = sum(same_port_max.values())
             spb = spb_fixed
         else:
-            spb_fixed = (q - 1) * task.wcet
+            spb_fixed = 0
             for ti in _get_interferers(task):
                 if ti.scheduling_parameter == task.scheduling_parameter:
                     spb_fixed += ti.wcet * ti.in_event_model.eta_plus_closed(a)
@@ -365,7 +365,11 @@ class FusionScheduler(analysis.Scheduler):
         has_tas = _has_tas_on_resource(resource)
         tas_gb = 0
         if has_tas:
-            tas_gb = self._tas_gate_blocking(task, q, spb, resource)
+            # load for gate blocking = q*wcet + sum_sp(eta*C+)
+            # for ATS: spb is same_port_max (no q*wcet term)
+            # for non-ATS: spb is sum_sp(eta*C+), need (q-1)*wcet + spb
+            spb_for_gb = spb if mech_task == 'ATS' else (q - 1) * task.wcet + spb
+            tas_gb = self._tas_gate_blocking(task, q, spb_for_gb, resource)
 
         # --- SKD Case 2 fixed parts: fragment counts (Luo2023 Eq.6 term d) ---
         skd_lp_frag = 0
