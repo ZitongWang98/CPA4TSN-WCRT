@@ -24,6 +24,7 @@ This project implements the following TSN (Time-Sensitive Networking) related fu
 | **TASScheduler** | Time-Aware Shaper scheduler based on IEEE 802.1Qbv |
 | **TASSchedulerE2E** | E2E-optimized TAS scheduler supporting end-to-end latency correction for multi-hop scenarios |
 | **CQFPScheduler** | Cyclic Queuing and Forwarding with Frame Preemption (IEEE 802.1Qch + 802.1Qbu), 4 traffic classes (N+E, N+P, C+E, C+P) |
+| **CQFPSchedulerE2E** | E2E-optimized CQFP scheduler, applies multi-hop CQF correction: E2E = (N-1)×T_CQF + WCRT_last |
 | **ATSScheduler** | Asynchronous Traffic Shaping scheduler (IEEE 802.1Qcr), per-flow token bucket with iterative eligible time computation |
 
 ### 2. TSN Resource Model
@@ -40,9 +41,10 @@ This project implements the following TSN (Time-Sensitive Networking) related fu
 
 ### 3. End-to-End Analysis
 
-- **`path_analysis.end_to_end_latency()`**: Supports TAS E2E correction
+- **`path_analysis.end_to_end_latency()`**: Supports TAS and CQF E2E correction
 - **`path.tas_aligned`**: Marks TAS time window alignment status along the path
-- **`TASSchedulerE2E`**: Automatically records `gate_closed_blocking` for E2E correction
+- **`TASSchedulerE2E`**: Automatically records `gate_closed_blocking` for TAS E2E correction
+- **`CQFPSchedulerE2E`**: Automatically records `cqf_cycle_time` for CQF E2E correction: `E2E = (N-1) × T_CQF + WCRT_last`
 
 ### 4. Switch Forwarding Delay
 
@@ -499,6 +501,57 @@ for t in [cqf_e, cqf_p, nst_e]:
     print(f"{t.name}: WCRT={results[t].wcrt}")
 ```
 
+### CQFPSchedulerE2E Usage Example
+
+**CQFPSchedulerE2E** is the E2E-optimized version of CQFPScheduler. For multi-hop CQF paths, intermediate hops contribute exactly one CQF cycle time each, so the E2E correction formula is:
+
+```
+E2E = (N-1) × T_CQF + WCRT_last_hop
+```
+
+where N is the number of hops and T_CQF is the CQF cycle time. This is tighter than the naive sum of per-hop WCRTs.
+
+```python
+from pycpa import model, analysis, path_analysis, schedulers_cqfp, options
+
+options.init_pycpa()
+s = model.System()
+
+# Create 3-hop CQF path, all using CQFPSchedulerE2E
+for i in range(1, 4):
+    sw = s.bind_resource(model.TSN_Resource(
+        f"Switch{i}",
+        schedulers_cqfp.CQFPSchedulerE2E(),
+        priority_mechanism_map={(7, 6): 'CQF'},
+        cqf_cycle_time_by_pair={(7, 6): 500},
+        is_express_by_priority={7: True, 6: False},
+    ))
+
+# Create 3-hop flow (CQF Express)
+tasks = []
+for i, sw in enumerate(s.resources):
+    t = model.Task(f'CQF_h{i+1}', bcet=5, wcet=5, scheduling_parameter=7)
+    sw.bind_task(t)
+    tasks.append(t)
+tasks[0].in_event_model = model.PJdEventModel(P=500, J=0)
+
+# Link tasks
+for i in range(len(tasks) - 1):
+    tasks[i].link_dependent_task(tasks[i + 1])
+
+# Create path
+path = model.Path('CQF_Path', tasks)
+s.bind_path(path)
+
+# Analyze
+results = analysis.analyze_system(s)
+lmin, lmax = path_analysis.end_to_end_latency(path, results, 1)
+print(f"E2E (corrected): {lmax}")
+# Compare with naive sum
+naive = sum(results[t].wcrt for t in tasks)
+print(f"E2E (naive sum): {naive}")
+```
+
 ---
 
 ## TSN Configuration Parameters
@@ -812,6 +865,7 @@ The following features are planned for future development:
 | **TASScheduler** | 时间感知整形器 (Time-Aware Shaper) 调度器，基于 IEEE 802.1Qbv 标准 |
 | **TASSchedulerE2E** | E2E优化版TAS调度器，支持端到端延迟修正，适用于多跳场景 |
 | **CQFPScheduler** | 循环排队转发 + 帧抢占调度器 (IEEE 802.1Qch + 802.1Qbu)，支持 4 种流量类别 (N+E, N+P, C+E, C+P) |
+| **CQFPSchedulerE2E** | E2E 优化版 CQFP 调度器，多跳 CQF 修正：E2E = (N-1)×T_CQF + WCRT_last |
 | **ATSScheduler** | 异步流量整形调度器 (IEEE 802.1Qcr)，逐流令牌桶整形，迭代式合格时间计算 |
 
 ### 2. TSN 资源模型
@@ -828,9 +882,10 @@ The following features are planned for future development:
 
 ### 3. 端到端分析
 
-- **`path_analysis.end_to_end_latency()`**: 支持 TAS E2E 修正
+- **`path_analysis.end_to_end_latency()`**: 支持 TAS 和 CQF E2E 修正
 - **`path.tas_aligned`**: 标记路径的 TAS 时间窗对齐状态
-- **`TASSchedulerE2E`**: 自动记录 `gate_closed_blocking` 信息用于 E2E 修正
+- **`TASSchedulerE2E`**: 自动记录 `gate_closed_blocking` 信息用于 TAS E2E 修正
+- **`CQFPSchedulerE2E`**: 自动记录 `cqf_cycle_time` 用于 CQF E2E 修正：`E2E = (N-1) × T_CQF + WCRT_last`
 
 ### 4. 交换机转发延迟
 
