@@ -40,7 +40,6 @@ def test_single_cbs():
     print("Test 1: Single Mechanism (CBS) via Resource Map")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'CBS'},
@@ -64,7 +63,6 @@ def test_single_cqf():
     print("Test 2: Single Mechanism (CQF) via Resource Map")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R2", schedulers.SPPScheduler(),
         priority_mechanism_map={(5, 4): 'CQF'},
@@ -88,7 +86,6 @@ def test_tas_mechanism():
     print("Test 3: TAS Mechanism via Resource Map")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R3", schedulers.SPPScheduler(),
         priority_mechanism_map={7: 'TAS', 6: 'TAS'},
@@ -118,7 +115,6 @@ def test_cbs_with_preemption():
     print("Test 4: CBS with Preemption via Resource Map")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R4", schedulers.SPPScheduler(),
         priority_mechanism_map={3: 'CBS'},
@@ -144,7 +140,6 @@ def test_with_system():
     print("Test 5: Plain Task on TSN_Resource in Complete System")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R1", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -198,7 +193,6 @@ def test_validations():
     print("Test 6-8: Parameter Validation")
     print("="*60)
 
-    options.init_pycpa()
 
     # 6. Missing required parameter for CBS (no idleslope_by_priority)
     print("\n6: Missing CBS idleslope on resource")
@@ -253,6 +247,7 @@ def test_validations():
 # ========================================
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARNING)
+    options.init_pycpa()
 
     test_single_cbs()
     test_single_cqf()

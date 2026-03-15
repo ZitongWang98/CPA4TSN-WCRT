@@ -273,10 +273,11 @@ class ATSScheduler(analysis.Scheduler):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 lpb = max(lpb, ti.wcet)
 
-        # Eq.(3.41): SPB
-        spb = 0.0
+        # Eq.(3.41): SPB — split into fixed (same-port) and dynamic (diff-port)
+        spb_fixed = 0.0
         same_port_max = {}  # port → max wcet
         src_port = _get_src_port(task)
+        diff_port_flows = []
         for ti in _get_interferers(task):
             if ti.scheduling_parameter != task.scheduling_parameter:
                 continue
@@ -284,25 +285,31 @@ class ATSScheduler(analysis.Scheduler):
             if ti_port == src_port and ti_port is not None:
                 same_port_max[ti_port] = max(same_port_max.get(ti_port, 0), ti.wcet)
             else:
-                spb += ti.wcet
-        spb += sum(same_port_max.values())
+                diff_port_flows.append(ti)
+        spb_fixed += sum(same_port_max.values())
 
-        # HPB iteration: Eq.(3.39)-(3.40)
-        # w̃ = LPB + SPB + HPB(w̃), then w = eT_abs + w̃
-        w_tilde = lpb + spb
+        # HPB + dynamic SPB iteration: Eq.(3.39)-(3.41)
+        # w̃ = LPB + spb_fixed + spb_diff(w̃) + HPB(w̃), then w = eT_abs + w̃
+        w_tilde = lpb + spb_fixed
         for _ in range(1000):
+            spb_diff = 0.0
+            for ti in diff_port_flows:
+                n = min(ti.in_event_model.eta_plus_closed(w_tilde),
+                        _n_token(w_tilde, ti, resource))
+                spb_diff += n * ti.wcet
+
             hpb = 0.0
             for ti in _get_interferers(task):
                 if ti.scheduling_parameter <= task.scheduling_parameter:
                     continue
                 if _is_ats(ti, resource):
-                    n = min(ti.in_event_model.eta_plus(w_tilde),
+                    n = min(ti.in_event_model.eta_plus_closed(w_tilde),
                             _n_token(w_tilde, ti, resource))
                 else:
-                    n = ti.in_event_model.eta_plus(w_tilde)
+                    n = ti.in_event_model.eta_plus_closed(w_tilde)
                 hpb += n * ti.wcet
 
-            w_tilde_new = lpb + spb + hpb
+            w_tilde_new = lpb + spb_fixed + spb_diff + hpb
             if w_tilde == w_tilde_new:
                 break
             w_tilde = w_tilde_new
@@ -311,7 +318,7 @@ class ATSScheduler(analysis.Scheduler):
 
         if details is not None:
             details['eT_block+LPB+SPB+HPB'] = (
-                f'{eT_block:.3f}+{lpb:.3f}+{spb:.3f}+{hpb:.3f}={w:.3f}')
+                f'{eT_block:.3f}+{lpb:.3f}+{spb_fixed + spb_diff:.3f}+{hpb:.3f}={w:.3f}')
             details['q'] = str(q)
 
         return w
@@ -336,7 +343,7 @@ class ATSScheduler(analysis.Scheduler):
             spb = 0.0
             for ti in _get_interferers(task):
                 if ti.scheduling_parameter == task.scheduling_parameter:
-                    spb += ti.wcet * ti.in_event_model.eta_plus(w)
+                    spb += ti.wcet * ti.in_event_model.eta_plus_closed(w)
 
             # Eq.(3.43): HPB with ATS token constraint
             hpb = 0.0
@@ -344,10 +351,10 @@ class ATSScheduler(analysis.Scheduler):
                 if ti.scheduling_parameter <= task.scheduling_parameter:
                     continue
                 if _is_ats(ti, resource):
-                    n = min(ti.in_event_model.eta_plus(w),
+                    n = min(ti.in_event_model.eta_plus_closed(w),
                             _n_token(w, ti, resource))
                 else:
-                    n = ti.in_event_model.eta_plus(w)
+                    n = ti.in_event_model.eta_plus_closed(w)
                 hpb += n * ti.wcet
 
             w_new = (q - 1) * task.wcet + lpb + spb + hpb

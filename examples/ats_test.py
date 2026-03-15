@@ -20,7 +20,6 @@ from pycpa import options
 
 
 def test_ats_basic():
-    options.init_pycpa()
     s = model.System("ATS_test")
 
     r = model.TSN_Resource("R1", ats.ATSScheduler(),
@@ -78,7 +77,6 @@ def test_ats_basic():
 
 def test_ats_with_nats():
     """Test mixed ATS + NATS flows on same resource."""
-    options.init_pycpa()
     s = model.System("ATS_NATS_test")
 
     r = model.TSN_Resource("R1", ats.ATSScheduler(),
@@ -126,5 +124,6 @@ def test_ats_with_nats():
 
 
 if __name__ == "__main__":
+    options.init_pycpa()
     test_ats_basic()
     test_ats_with_nats()

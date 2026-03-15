@@ -153,8 +153,6 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
         return sum_wcrt
     if not all(getattr(task_results[t], 'non_gate_closed', None) is not None for t in path_tasks):
         return sum_wcrt
-    if not _is_tas_path(regular_tasks, task_results):
-        return sum_wcrt
     t0 = regular_tasks[0]
     G_duration = getattr(task_results[t0], 'gate_closed_duration', None)
     if G_duration is None or G_duration <= 0:
@@ -163,20 +161,23 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
     # K_actual: actual number of gate-closed blockings along the path
     K_actual = _compute_tas_k_first(path, task_results, tas_aligned, regular_tasks)
 
-    # Sum of non-gate-closed blocking components (WCRT - gate_closed_blocking) for each hop
-    # This represents all other sources of delay (same-priority blocking, etc.)
-    # Only regular tasks participate in the gate-closed correction formula.
+    # Sum of non-gate-closed delay components for all hops.
+    # Regular tasks contribute (WCRT - gate_closed_blocking).
+    # Forwarding tasks contribute their full WCRT (no gate blocking).
+    # Forwarding delay must be included because it shifts frame arrival
+    # at the next hop and can cause additional gate-closed blockings.
     sum_non_gate_closed = 0
     for t in regular_tasks:
         sum_non_gate_closed += task_results[t].non_gate_closed
-    res = t.resource
-    prio = t.scheduling_parameter
-    tas_window = res.effective_tas_window_time(prio)
+    for t in forwarding_tasks:
+        sum_non_gate_closed += task_results[t].wcrt
+    t_last = regular_tasks[-1]
+    tas_window = getattr(task_results[t_last], 'tas_available_window', None)
+    if tas_window is None or tas_window <= 0:
+        return sum_wcrt
     K_actual += int(math.floor(sum_non_gate_closed / tas_window))
-    # Corrected E2E = sum(non-gate-closed of regular tasks) + K_actual * G_duration
-    #               + sum(forwarding task WCRT)
-    forwarding_delay_total = sum(task_results[t].wcrt for t in forwarding_tasks)
-    corrected_sum = sum_non_gate_closed + K_actual * G_duration + forwarding_delay_total
+    # Corrected E2E = sum(non-gate-closed of all tasks) + K_actual * G_duration
+    corrected_sum = sum_non_gate_closed + K_actual * G_duration
 
     return corrected_sum
 

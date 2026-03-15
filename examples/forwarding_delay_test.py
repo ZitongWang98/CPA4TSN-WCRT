@@ -54,7 +54,6 @@ def create_two_hop_system(with_forwarding_delay=True, use_e2e_scheduler=True):
     Returns:
         (s, task_h1, task_h2): System and the two hop tasks
     """
-    options.init_pycpa()
     s = model.System()
 
     # Select scheduler class
@@ -373,7 +372,6 @@ def test_asymmetric_forwarding_delay():
     FD_BCET = 3
     FD_WCET = 7
 
-    options.init_pycpa()
     s = model.System()
 
     sw1 = s.bind_resource(model.TSN_Resource("Switch1", schedulers.TASSchedulerE2E(),
@@ -445,6 +443,7 @@ def test_asymmetric_forwarding_delay():
 # 4. Main function entry
 # ========================================
 if __name__ == "__main__":
+    options.init_pycpa()
     test_forwarding_delay_basic()
     test_output_model_propagation()
     test_forwarding_task_no_gate_blocking()

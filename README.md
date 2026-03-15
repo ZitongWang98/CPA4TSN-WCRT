@@ -26,6 +26,7 @@ This project implements the following TSN (Time-Sensitive Networking) related fu
 | **CQFPScheduler** | Cyclic Queuing and Forwarding with Frame Preemption (IEEE 802.1Qch + 802.1Qbu), 4 traffic classes (N+E, N+P, C+E, C+P) |
 | **CQFPSchedulerE2E** | E2E-optimized CQFP scheduler, applies multi-hop CQF correction: E2E = (N-1)×T_CQF + WCRT_last |
 | **ATSScheduler** | Asynchronous Traffic Shaping scheduler (IEEE 802.1Qcr), per-flow token bucket with iterative eligible time computation |
+| **FusionScheduler** | Unified single-port scheduler fusing TAS (802.1Qbv), CQF (802.1Qch), ATS (802.1Qcr), and Frame Preemption (802.1Qbu). Supports 6 traffic classes: ST, ATS+E, C+E, NC+E, NC+P, C+P |
 
 ### 2. TSN Resource Model
 

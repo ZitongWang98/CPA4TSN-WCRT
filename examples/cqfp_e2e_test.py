@@ -44,7 +44,6 @@ def make_switch(system, name, scheduler_cls):
 
 def run_scenario(scheduler_cls, label):
     """Run 3-hop analysis for a C+E flow and return (per-hop WCRTs, E2E)."""
-    options.init_pycpa()
     s = model.System(label)
 
     switches = [make_switch(s, f"SW{i+1}", scheduler_cls) for i in range(N_HOPS)]
@@ -140,4 +139,5 @@ def test_cqf_e2e():
 
 
 if __name__ == "__main__":
+    options.init_pycpa()
     test_cqf_e2e()

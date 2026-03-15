@@ -681,21 +681,23 @@ class TASScheduler(analysis.Scheduler):
                 gate_closed_duration = 0
 
                 # same-priority blocking
+                max_st_wcet = task.wcet
                 for ti in task.get_resource_interferers():
                     assert (ti.scheduling_parameter != None)
                     assert (ti.resource == task.resource)
                     if (ti.scheduling_parameter == task.scheduling_parameter):
                         same_priority_interference += ti.wcet * ti.in_event_model.eta_plus_closed(arrival_time)
+                        max_st_wcet = max(max_st_wcet, ti.wcet)
                 same_priority_blocking = (q - 1) * task.wcet + same_priority_interference
 
                 tas_cycle = resource.effective_tas_cycle_time(task.scheduling_parameter)
                 tas_window = resource.effective_tas_window_time(task.scheduling_parameter)
 
                 # gate-closed time for once
-                gate_closed_duration = tas_cycle - tas_window + task.wcet
+                gate_closed_duration = tas_cycle - tas_window + max_st_wcet
 
                 # gate-closed blocking
-                gate_closed_blocking = math.ceil((same_priority_blocking + task.wcet) / (tas_window - task.wcet)) * gate_closed_duration
+                gate_closed_blocking = math.ceil((same_priority_blocking + task.wcet) / (tas_window - max_st_wcet)) * gate_closed_duration
                 
                 worst_case_queuing_time = same_priority_blocking + gate_closed_blocking
             # NST flow - not handled by TAS scheduler
@@ -905,23 +907,25 @@ class TASSchedulerE2E(TASScheduler):
                 gate_closed_duration = 0
                 guard_band = 0
 
+                max_st_wcet = task.wcet
                 for ti in task.get_resource_interferers():
                     assert ti.scheduling_parameter is not None
                     assert ti.resource == task.resource
                     if ti.scheduling_parameter == task.scheduling_parameter:
                         same_priority_interference += ti.wcet * ti.in_event_model.eta_plus_closed(arrival_time)
+                        max_st_wcet = max(max_st_wcet, ti.wcet)
                 same_priority_blocking = (q - 1) * task.wcet + same_priority_interference
 
                 tas_cycle = resource.effective_tas_cycle_time(task.scheduling_parameter)
                 tas_window = resource.effective_tas_window_time(task.scheduling_parameter)
 
-                # For TAS flows: use user-defined guard_band if available, else use task.wcet
+                # For TAS flows: use user-defined guard_band if available, else max ST wcet
                 if _is_tsn:
                     user_guard_band = resource.effective_guard_band(task.scheduling_parameter)
                     if user_guard_band is not None:
                         guard_band = user_guard_band
                     else:
-                        guard_band = task.wcet
+                        guard_band = max_st_wcet
 
                 gate_closed_duration = tas_cycle - tas_window + guard_band
                 # Number of gate-closed blockings (same formula as TASScheduler)
@@ -994,17 +998,27 @@ class TASSchedulerE2E(TASScheduler):
                 gate_closed_blocking_final = gate_closed_blocking
                 if _task_uses_tas:
                     gate_closed_duration_final = gate_closed_duration
+                else:
+                    gate_closed_duration_final = gate_closed_duration + guard_band
                 self.arrival_time_final = arrival_time
 
         task_results = kwargs.get('task_results')
         if (task_results is not None and task in task_results and
-                details is not None and _task_uses_tas):
-            # For E2E analysis, we need to decompose WCRT into:
-            # 1. non_gate_closed_q (blocking excluding gate-closed)
-            # 2. G_duration is the duration of one complete gate-closed period
+                details is not None):
             task_results[task].gate_closed_duration = gate_closed_duration_final
-            # Store wcrt for computing non_gate_closed_q
             task_results[task].non_gate_closed = response_time_final + self.arrival_time_final - gate_closed_blocking_final
+            if _task_uses_tas:
+                tas_w = resource.effective_tas_window_time(task.scheduling_parameter)
+                task_results[task].tas_available_window = tas_w
+            else:
+                # NST: available = cycle - sum(TAS windows) - guard_band
+                tc = resource.effective_tas_cycle_time()
+                tw_sum = 0
+                if resource.priority_mechanism_map is not None:
+                    for key, mech in resource.priority_mechanism_map.items():
+                        if mech == 'TAS' and not isinstance(key, tuple):
+                            tw_sum += resource.effective_tas_window_time(key)
+                task_results[task].tas_available_window = tc - tw_sum - guard_band
 
         return worst_case_queuing_time_final
 

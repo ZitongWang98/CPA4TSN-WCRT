@@ -48,7 +48,6 @@ def test_valid_tas_configuration():
     print("Test 1: Valid TAS Configuration")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS', 2: 'TAS'},
@@ -83,7 +82,6 @@ def test_invalid_tas_different_cycle_times():
     print("Test 2: Invalid TAS - Different Cycle Times (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS'},
@@ -120,7 +118,6 @@ def test_invalid_tas_same_sched_param_different_window():
     print("Test 3: Invalid TAS - Same sched_param, Different Window (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS'},
@@ -157,7 +154,6 @@ def test_valid_cqf_with_tas():
     print("Test 4: Valid CQF with TAS")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R4", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -193,7 +189,6 @@ def test_invalid_cqf_not_even_multiple_of_tas():
     print("Test 5: Invalid CQF - Not Even Multiple of TAS (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R5", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -226,7 +221,6 @@ def test_invalid_cqf_different_cycle_times():
     print("Test 6: Invalid CQF - No Even Multiple Relation (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R6a", schedulers.SPPScheduler(),
         priority_mechanism_map={(1, 2): 'CQF'},
@@ -261,7 +255,6 @@ def test_cqf_only_same_cycle():
     print("Test 7: CQF Only - Same Cycle Time")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R7", schedulers.SPPScheduler(),
         priority_mechanism_map={(1, 2): 'CQF'},
@@ -289,7 +282,6 @@ def test_mixed_tas_cqf_full_valid():
     print("Test 8: Mixed TAS and CQF - Full Valid Configuration")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R8", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -330,7 +322,6 @@ def test_cqf_mixed_valid_even_multiple():
     print("Test 9: CQF Only - Valid Even Multiple Relationship")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R9", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -364,7 +355,6 @@ def test_no_tsn_tasks():
     print("Test 10: No TSN Tasks")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.Resource("R10", schedulers.SPPScheduler()))
 
@@ -389,7 +379,6 @@ def test_cqf_less_than_tas_cycle():
     print("Test 11: Invalid CQF - Less Than TAS Cycle (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R11", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -422,7 +411,6 @@ def test_cqf_equal_to_tas_cycle():
     print("Test 12: Valid CQF - Equal to TAS Cycle")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("R12", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -455,7 +443,6 @@ def test_valid_chain_same_tas():
     print("Test 13: Valid Task Chain - All Tasks with Same TAS")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R13_1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS'},
@@ -495,7 +482,6 @@ def test_invalid_chain_mixed_mechanisms():
     print("Test 14: Invalid Task Chain - TAS and CQF Mixed (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R14_1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS'},
@@ -539,7 +525,6 @@ def test_invalid_chain_different_tas_params():
     print("Test 15: Invalid Task Chain - Different TAS Parameters (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R15_1", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'TAS'},
@@ -584,7 +569,6 @@ def test_valid_chain_same_cqf():
     print("Test 16: Valid Task Chain - All Tasks with Same CQF")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r1 = s.bind_resource(model.TSN_Resource("R16_1", schedulers.SPPScheduler(),
         priority_mechanism_map={(1, 2): 'CQF'},
@@ -626,7 +610,6 @@ def test_map_valid_full_config():
     print("Test MAP-1: Valid Full Priority-Mechanism Map Configuration")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("Port1", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -680,7 +663,6 @@ def test_map_valid_tas_only():
     print("Test MAP-2: Valid Map - TAS Only")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("Port2", schedulers.SPPScheduler(),
         priority_mechanism_map={7: 'TAS', 6: 'TAS'},
@@ -711,7 +693,6 @@ def test_map_valid_multiple_cqf_pairs():
     print("Test MAP-3: Valid Map - Multiple CQF Pairs (Even Multiple)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("Port3", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -744,7 +725,6 @@ def test_map_valid_auto_derive():
     print("Test MAP-4: Auto-Derive Mechanism from Map")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("Port4", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -792,7 +772,6 @@ def test_map_invalid_mechanism_name():
     print("Test MAP-5: Invalid Mechanism Name (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad1", schedulers.SPPScheduler(),
         priority_mechanism_map={7: 'INVALID_MECH'},
@@ -815,7 +794,6 @@ def test_map_invalid_cqf_single_priority():
     print("Test MAP-6: CQF with Single Priority Key (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad2", schedulers.SPPScheduler(),
         priority_mechanism_map={5: 'CQF'},
@@ -839,7 +817,6 @@ def test_map_invalid_cqf_three_priorities():
     print("Test MAP-7: CQF with 3-Tuple Key (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad3", schedulers.SPPScheduler(),
         priority_mechanism_map={(5, 4, 3): 'CQF'},
@@ -863,7 +840,6 @@ def test_map_invalid_duplicate_priority():
     print("Test MAP-8: Duplicate Priority in Map (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad4", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -892,7 +868,6 @@ def test_map_invalid_missing_tas_window():
     print("Test MAP-9: Missing TAS Window Time for Priority (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad5", schedulers.SPPScheduler(),
         priority_mechanism_map={7: 'TAS', 6: 'TAS'},
@@ -921,7 +896,6 @@ def test_map_invalid_missing_cqf_cycle():
     print("Test MAP-10: Missing CQF Cycle Time for Pair (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad6", schedulers.SPPScheduler(),
         priority_mechanism_map={(5, 4): 'CQF'},
@@ -944,7 +918,6 @@ def test_map_invalid_missing_cbs_idleslope():
     print("Test MAP-11: Missing CBS idleslope for Priority (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad7", schedulers.SPPScheduler(),
         priority_mechanism_map={1: 'CBS'},
@@ -967,7 +940,6 @@ def test_map_invalid_missing_ats_params():
     print("Test MAP-12: ATS Task Missing CIR/CBS (should fail at b_plus)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     from pycpa import schedulers_ats
     r = s.bind_resource(model.TSN_Resource("PortBad8",
@@ -994,7 +966,6 @@ def test_map_invalid_ats_incomplete_params():
     print("Test MAP-13: ATS Resource-Level Params Optional (should pass)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     from pycpa import schedulers_ats
     r = s.bind_resource(model.TSN_Resource("PortBad9",
@@ -1021,7 +992,6 @@ def test_map_invalid_cqf_tas_odd_multiple():
     print("Test MAP-14: CQF Cycle Time Odd Multiple of TAS (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad10", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -1054,7 +1024,6 @@ def test_map_invalid_cqf_pairs_bad_relation():
     print("Test MAP-15: CQF Pairs Bad Cycle Time Relation (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad11", schedulers.SPPScheduler(),
         priority_mechanism_map={
@@ -1085,7 +1054,6 @@ def test_map_invalid_task_priority_not_in_map():
     print("Test MAP-16: Task Priority Not in Map (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad12", schedulers.SPPScheduler(),
         priority_mechanism_map={7: 'TAS'},
@@ -1114,7 +1082,6 @@ def test_map_invalid_tuple_key_non_cqf():
     print("Test MAP-17: Tuple Key for Non-CQF Mechanism (should fail)")
     print("="*60)
 
-    options.init_pycpa()
     s = model.System()
     r = s.bind_resource(model.TSN_Resource("PortBad14", schedulers.SPPScheduler(),
         priority_mechanism_map={(7, 6): 'TAS'},
@@ -1135,6 +1102,7 @@ def test_map_invalid_tuple_key_non_cqf():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.WARNING)
+    options.init_pycpa()
 
     print("\n" + "#"*60)
     print("# TSN Parameter Validation Tests")
