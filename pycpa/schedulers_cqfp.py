@@ -3,9 +3,13 @@ CQF with Preemption (CQFP) Scheduler for TSN networks.
 
 Implements schedulability analysis for CQF combined with Frame Preemption,
 based on:
-    Luo F, Wang Z, Guo Y, et al. Research on Cyclic Queuing and Forwarding
-    With Preemption in Time-Sensitive Networking[J]. IEEE Embedded Systems
-    Letters, 2023.
+    Luo F, Wang Z, Guo Y, et al. Research on cyclic queuing and forwarding
+    with preemption in time-sensitive networking[J]. IEEE Embedded Systems
+    Letters, 2023, 16(2): 110-113.
+
+    Luo F, Wang Z, Ren Y, et al. Simulative assessments of cyclic queuing
+    and forwarding with preemption in in-vehicle time-sensitive networking[C]
+    //WCX SAE World Congress Experience. SAE Technical Paper, 2024.
 
 Traffic classes (determined by TSN_Resource configuration):
     N+E: Non-CQF, Express
