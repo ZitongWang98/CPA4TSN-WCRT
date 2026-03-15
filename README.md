@@ -737,6 +737,9 @@ if __name__ == "__main__":
   Luo F, Wang Z, Guo Y, et al. Research on cyclic queuing and forwarding with preemption in time-sensitive networking[J]. IEEE Embedded Systems Letters, 2023, 16(2): 110-113.
   Luo F, Wang Z, Ren Y, et al. Simulative assessments of cyclic queuing and forwarding with preemption in in-vehicle time-sensitive networking[C]//WCX SAE World Congress Experience. SAE Technical Paper, 2024.
 
+- **CQFPSchedulerE2E** (E2E correction):
+  Luo F, Gan H, Zhu L, et al. Timing analysis of the TSN time-aware shaper based on compositional performance analysis[J]. Recent Advances in Electrical & Electronic Engineering, 2025, 18.
+
 - **FPFIFOForwardAnalyzer** (Forward Analysis):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.
 
@@ -1392,6 +1395,9 @@ if __name__ == "__main__":
 - **CQFPScheduler**:
   Luo F, Wang Z, Guo Y, et al. Research on cyclic queuing and forwarding with preemption in time-sensitive networking[J]. IEEE Embedded Systems Letters, 2023, 16(2): 110-113.
   Luo F, Wang Z, Ren Y, et al. Simulative assessments of cyclic queuing and forwarding with preemption in in-vehicle time-sensitive networking[C]//WCX SAE World Congress Experience. SAE Technical Paper, 2024.
+
+- **CQFPSchedulerE2E** (E2E 修正):
+  Luo F, Gan H, Zhu L, et al. Timing analysis of the TSN time-aware shaper based on compositional performance analysis[J]. Recent Advances in Electrical & Electronic Engineering, 2025, 18.
 
 - **FPFIFOForwardAnalyzer** (前向分析):
   Benammar N, Ridouard F, Bauer H, et al. Forward end-to-end delay analysis extension for FP/FIFO policy in AFDX networks[C]//2017 22nd IEEE International Conference on Emerging Technologies and Factory Automation (ETFA). IEEE, 2017: 1-8.

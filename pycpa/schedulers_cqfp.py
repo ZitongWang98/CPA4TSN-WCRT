@@ -532,8 +532,10 @@ class CQFPSchedulerE2E(CQFPScheduler):
 
         E2E = (N-1) * T_CQF + WCRT_last_hop
 
-    based on Thesis Eq.(3.31): in CQF, intermediate hops contribute exactly
-    one cycle time each; only the last hop needs the full local analysis.
+    The E2E correction method is based on:
+        Luo F, Gan H, Zhu L, et al. Timing analysis of the TSN time-aware
+        shaper based on compositional performance analysis[J]. Recent Advances
+        in Electrical & Electronic Engineering, 2025, 18.
 
     For non-CQF streams (N+E, N+P), behaviour is identical to CQFPScheduler.
 
