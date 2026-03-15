@@ -181,6 +181,63 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
     return corrected_sum
 
 
+def _apply_cqf_e2e_correction(path, task_results, tasks, sum_wcrt):
+    """Apply CQF multi-hop E2E correction.
+
+    For CQF streams, the packet passes through N cycle boundaries before
+    the last-hop gate opens.  After the gate opens, only the local queuing
+    delay (SPB + HPB + C, i.e. WCRT_last - T_CQF) remains.
+
+    Based on Thesis Eq.(3.29)-(3.31):
+
+        E2E = N * T_CQF + (WCRT_last - T_CQF)
+
+    which is mathematically equivalent to (N-1)*T_CQF + WCRT_last.
+
+    Requirements:
+        - Path must be a model.Path
+        - All regular (non-forwarding) tasks must use CQFPSchedulerE2E
+        - All regular tasks must have cqf_cycle_time recorded in task_results
+
+    Returns sum_wcrt unchanged when requirements are not met.
+    """
+    if not isinstance(path, model.Path):
+        return sum_wcrt
+
+    from . import schedulers_cqfp
+
+    path_tasks = [t for t in tasks if isinstance(t, model.Task) and t in task_results]
+    if not path_tasks:
+        return sum_wcrt
+
+    regular_tasks = [t for t in path_tasks
+                     if not model.ForwardingTask.is_forwarding_task(t)]
+    forwarding_tasks = [t for t in path_tasks
+                        if model.ForwardingTask.is_forwarding_task(t)]
+
+    if len(regular_tasks) < 2:
+        return sum_wcrt
+
+    # All regular tasks must use CQFPSchedulerE2E and have cqf_cycle_time
+    for t in regular_tasks:
+        sched = getattr(getattr(t, 'resource', None), 'scheduler', None)
+        if not isinstance(sched, schedulers_cqfp.CQFPSchedulerE2E):
+            return sum_wcrt
+        if getattr(task_results[t], 'cqf_cycle_time', None) is None:
+            return sum_wcrt
+
+    t_cqf = task_results[regular_tasks[0]].cqf_cycle_time
+    N = len(regular_tasks)
+    last_hop_wcrt = task_results[regular_tasks[-1]].wcrt
+
+    # Eq.(3.29)-(3.31): E2E = N * T_CQF + (WCRT_last - T_CQF)
+    w_last_after_gate = last_hop_wcrt - t_cqf
+    forwarding_delay = sum(task_results[t].wcrt for t in forwarding_tasks)
+    corrected = N * t_cqf + w_last_after_gate + forwarding_delay
+
+    return min(sum_wcrt, corrected)
+
+
 def end_to_end_latency(path, task_results, n=1 , task_overhead=0,
                        path_overhead=0, **kwargs):
     """ Computes the worst-/best-case e2e latency for n tokens to pass the path.
@@ -260,6 +317,9 @@ def end_to_end_latency_classic(path, task_results, n=1, injection_rate='max', **
 
     # TAS E2E correction: replace sum(WCRT) with sum(WCRT) - (N - K) * G when applicable
     lmax = _apply_tas_e2e_correction(path, task_results, tasks, lmax)
+
+    # CQF E2E correction: replace sum(WCRT) with (N-1)*T_CQF + WCRT_last when applicable
+    lmax = _apply_cqf_e2e_correction(path, task_results, tasks, lmax)
 
     if injection_rate == 'max':
         # add the eastliest possible release of event n
