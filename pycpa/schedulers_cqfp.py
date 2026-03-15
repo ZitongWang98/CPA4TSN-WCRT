@@ -94,6 +94,12 @@ def _L_plus(C_plus, resource):
     return min(C_plus, _max_fragment_us(resource))
 
 
+def _get_interferers(task):
+    """Get resource interferers excluding ForwardingTasks."""
+    return [ti for ti in task.get_resource_interferers()
+            if not model.ForwardingTask.is_forwarding_task(ti)]
+
+
 def _num_fragments(payload_bytes):
     """Number of preemption fragments for a frame with given payload.
 
@@ -154,7 +160,7 @@ class CQFPScheduler(analysis.Scheduler):
         a_min = task.in_event_model.delta_min(q)
         a_max = task.in_event_model.delta_min(q + 1)
         aiq = []
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter == task.scheduling_parameter:
                 for n in range(1, 1000):
                     d = ti.in_event_model.delta_min(n)
@@ -175,7 +181,7 @@ class CQFPScheduler(analysis.Scheduler):
         # LP preemptable: capped by L+ (Lemma 1)
         # LP express or LP non-CQF express: full wcet
         i_lpb = 0
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:  # preemptable
@@ -186,7 +192,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # --- Same-priority blocking ---
         i_spb = (q - 1) * task.wcet
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter == task.scheduling_parameter:
                 i_spb += ti.wcet * ti.in_event_model.eta_plus_closed(a)
 
@@ -194,7 +200,7 @@ class CQFPScheduler(analysis.Scheduler):
         w = i_lpb + i_spb
         while True:
             i_hpb = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter > task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -235,7 +241,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # --- Lower-priority blocking (same as N+E) ---
         i_lpb = 0
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:
@@ -246,7 +252,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # --- Same-priority blocking ---
         i_spb = (q - 1) * task.wcet
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter == task.scheduling_parameter:
                 i_spb += ti.wcet * ti.in_event_model.eta_plus_closed(a)
 
@@ -255,7 +261,7 @@ class CQFPScheduler(analysis.Scheduler):
         while True:
             i_hpb = 0
             w_eff = w - phi  # effective window for HP interference
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter > task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -302,7 +308,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # --- Lower-priority blocking term (a): max LP preemptable frame ---
         lpb_term_a = 0
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:  # preemptable LP
@@ -310,7 +316,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # --- Same-priority blocking ---
         i_spb = 0
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter == task.scheduling_parameter:
                 i_spb += ti.wcet * ti.in_event_model.eta_plus_closed(a)
 
@@ -327,7 +333,7 @@ class CQFPScheduler(analysis.Scheduler):
         while True:
             # LP blocking terms (b) and (c) from Eq.4
             lpb_bc = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter < task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -340,7 +346,7 @@ class CQFPScheduler(analysis.Scheduler):
 
             # HP blocking: Eq.5
             i_hpb = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter > task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -354,7 +360,7 @@ class CQFPScheduler(analysis.Scheduler):
             # SKD Case 1: terms (a)+(b)+(c) from Eq.6
             skd_abc = 0
             # term (a): express frames from non-CQF
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter != task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -379,7 +385,7 @@ class CQFPScheduler(analysis.Scheduler):
 
         # SKD term (d) fixed parts: fragment counts
         skd_fixed_lp = 0  # term (a) of Eq.6: max LP preemptable fragment count
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter < task.scheduling_parameter:
                 ti_cqf, ti_express = _get_traffic_class(ti, resource)
                 if not ti_express:
@@ -387,7 +393,7 @@ class CQFPScheduler(analysis.Scheduler):
                     skd_fixed_lp = max(skd_fixed_lp, _num_fragments(payload))
 
         skd_fixed_sp = 0  # term (b) of Eq.6: same-priority fragment counts
-        for ti in task.get_resource_interferers():
+        for ti in _get_interferers(task):
             if ti.scheduling_parameter == task.scheduling_parameter:
                 payload = getattr(ti, 'payload', None)
                 skd_fixed_sp += _num_fragments(payload) * ti.in_event_model.eta_plus_closed(a)
@@ -401,7 +407,7 @@ class CQFPScheduler(analysis.Scheduler):
         w2 = base + skd_d_fixed
         while True:
             lpb_bc = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter < task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -413,7 +419,7 @@ class CQFPScheduler(analysis.Scheduler):
                             _cqf_eta_window(w_eff, t_cqf_ti))
 
             i_hpb = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter > task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     t_cqf_ti = _cqf_cycle(ti, resource)
@@ -426,7 +432,7 @@ class CQFPScheduler(analysis.Scheduler):
 
             # SKD term (c) of Eq.6: HP preemptable fragment counts (w-dependent)
             skd_hp = 0
-            for ti in task.get_resource_interferers():
+            for ti in _get_interferers(task):
                 if ti.scheduling_parameter > task.scheduling_parameter:
                     ti_cqf, ti_express = _get_traffic_class(ti, resource)
                     if not ti_express:
@@ -460,11 +466,17 @@ class CQFPScheduler(analysis.Scheduler):
         - _min_fragment_us(resource) for preemptable streams
         This ensures b_plus(q) - b_plus(q-1) >= wcet (framework invariant).
 
+        For forwarding tasks: returns q * wcet directly (no blocking).
+
         Dispatches to the appropriate traffic-class-specific method
         based on TSN_Resource configuration.
         """
         assert task.scheduling_parameter is not None
         assert task.wcet >= 0
+
+        # Forwarding tasks: no blocking, simple busy window
+        if model.ForwardingTask.is_forwarding_task(task):
+            return q * task.wcet
 
         resource = task.resource
         uses_cqf, is_express = _get_traffic_class(task, resource)
