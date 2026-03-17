@@ -1,4 +1,0 @@
-# file: /home/wzt/SSD/code/pycpa/pycpa/analysis.py
-# hypothesis_version: 6.151.9
-
-[1.0, 1000, '*', ', ', '.eta*WCET', ':', ':eta*WCET', 'ATS', 'Analysis stopped!', 'CBS', 'CQF', 'None', 'TAS', 'VALID_MECHANISMS', 'analysisOrder: %s', 'cbs', 'check_violations', 'cir', 'compute wcrt of %s', 'inf', 'is_tsn_resource', 'iteration for q=%d', 'load on %s: %f', 'marked diry, mutex', 'max_iterations', 'max_wcrt', 'post_hook', 'q*WCET', 'resource', 'scheduling_parameter', 'setting results %d', 'sum', 'timeout']

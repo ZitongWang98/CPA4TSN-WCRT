@@ -12,7 +12,7 @@ Constants at 1 Gbps:
 import sys, os, math
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from pycpa import model, analysis
-from pycpa.schedulers_fusion import FusionScheduler
+from pycpa.schedulers_fusion import FusionSchedulerE2E as FusionScheduler
 
 PASS = 0
 FAIL = 0

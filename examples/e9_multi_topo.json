@@ -5,9 +5,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 254.0,
+    "sum_wcrt": 354.0,
     "e2e": 254.0,
-    "improv": 0.0
+    "improv": 28.24858757062147
   },
   {
     "topo": "Linear",
@@ -15,9 +15,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 238.0,
+    "sum_wcrt": 331.3333333333337,
     "e2e": 238.0,
-    "improv": 0.0
+    "improv": 28.169014084507126
   },
   {
     "topo": "Linear",
@@ -25,9 +25,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 373.0,
+    "sum_wcrt": 553.0,
     "e2e": 373.0,
-    "improv": 0.0
+    "improv": 32.5497287522604
   },
   {
     "topo": "Linear",
@@ -155,9 +155,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 312.0,
+    "sum_wcrt": 512.0,
     "e2e": 312.0,
-    "improv": 0.0
+    "improv": 39.0625
   },
   {
     "topo": "Linear",
@@ -165,9 +165,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 278.0,
+    "sum_wcrt": 478.0,
     "e2e": 278.0,
-    "improv": 0.0
+    "improv": 41.84100418410041
   },
   {
     "topo": "Linear",
@@ -175,9 +175,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 607.0,
+    "sum_wcrt": 811.0,
     "e2e": 607.0,
-    "improv": 0.0
+    "improv": 25.154130702836003
   },
   {
     "topo": "Linear",
@@ -305,9 +305,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 426.0,
+    "sum_wcrt": 666.0,
     "e2e": 426.0,
-    "improv": 0.0
+    "improv": 36.03603603603604
   },
   {
     "topo": "Linear",
@@ -315,9 +315,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 369.3333333333337,
+    "sum_wcrt": 609.3333333333334,
     "e2e": 369.3333333333337,
-    "improv": 0.0
+    "improv": 39.387308533916794
   },
   {
     "topo": "Linear",
@@ -325,9 +325,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 938.0,
+    "sum_wcrt": 1064.0,
     "e2e": 938.0,
-    "improv": 0.0
+    "improv": 11.842105263157894
   },
   {
     "topo": "Linear",
@@ -335,9 +335,9 @@
     "flow": "CQF1",
     "cls": "CQF",
     "hops": 3,
-    "sum_wcrt": 2140,
+    "sum_wcrt": 2158,
     "e2e": 1699,
-    "improv": 20.60747663551402
+    "improv": 21.26969416126043
   },
   {
     "topo": "Linear",
@@ -355,9 +355,9 @@
     "flow": "CQF3",
     "cls": "CQF",
     "hops": 2,
-    "sum_wcrt": 1436,
+    "sum_wcrt": 1454,
     "e2e": 1199,
-    "improv": 16.504178272980504
+    "improv": 17.537826685006877
   },
   {
     "topo": "Linear",
@@ -365,9 +365,9 @@
     "flow": "NC_E1",
     "cls": "SP+E",
     "hops": 4,
-    "sum_wcrt": 909.576,
+    "sum_wcrt": 927.576,
     "e2e": 669.576,
-    "improv": 26.385920472835693
+    "improv": 27.814432456208436
   },
   {
     "topo": "Linear",
@@ -395,9 +395,9 @@
     "flow": "NC_P2",
     "cls": "SP+P",
     "hops": 2,
-    "sum_wcrt": 467.76800000000003,
+    "sum_wcrt": 485.76800000000003,
     "e2e": 345.76800000000003,
-    "improv": 26.081305262437787
+    "improv": 28.820342220977913
   },
   {
     "topo": "Linear",
@@ -455,9 +455,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 254.0,
+    "sum_wcrt": 354.0,
     "e2e": 254.0,
-    "improv": 0.0
+    "improv": 28.24858757062147
   },
   {
     "topo": "Tree",
@@ -465,9 +465,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 238.0,
+    "sum_wcrt": 331.3333333333337,
     "e2e": 238.0,
-    "improv": 0.0
+    "improv": 28.169014084507126
   },
   {
     "topo": "Tree",
@@ -475,9 +475,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 4,
-    "sum_wcrt": 493.0,
+    "sum_wcrt": 733.0,
     "e2e": 493.0,
-    "improv": 0.0
+    "improv": 32.74215552523875
   },
   {
     "topo": "Tree",
@@ -605,9 +605,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 312.0,
+    "sum_wcrt": 512.0,
     "e2e": 312.0,
-    "improv": 0.0
+    "improv": 39.0625
   },
   {
     "topo": "Tree",
@@ -615,9 +615,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 278.0,
+    "sum_wcrt": 478.0,
     "e2e": 278.0,
-    "improv": 0.0
+    "improv": 41.84100418410041
   },
   {
     "topo": "Tree",
@@ -625,9 +625,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 4,
-    "sum_wcrt": 593.0,
+    "sum_wcrt": 1073.0,
     "e2e": 593.0,
-    "improv": 0.0
+    "improv": 44.73438956197577
   },
   {
     "topo": "Tree",
@@ -755,9 +755,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 426.0,
+    "sum_wcrt": 666.0,
     "e2e": 426.0,
-    "improv": 0.0
+    "improv": 36.03603603603604
   },
   {
     "topo": "Tree",
@@ -765,9 +765,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 369.3333333333337,
+    "sum_wcrt": 609.3333333333334,
     "e2e": 369.3333333333337,
-    "improv": 0.0
+    "improv": 39.387308533916794
   },
   {
     "topo": "Tree",
@@ -775,9 +775,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 4,
-    "sum_wcrt": 806.0,
+    "sum_wcrt": 1406.0,
     "e2e": 806.0,
-    "improv": 0.0
+    "improv": 42.67425320056899
   },
   {
     "topo": "Tree",
@@ -905,9 +905,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 246.0,
+    "sum_wcrt": 346.0,
     "e2e": 246.0,
-    "improv": 0.0
+    "improv": 28.901734104046245
   },
   {
     "topo": "Ring",
@@ -915,9 +915,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 248.0,
+    "sum_wcrt": 341.33333333333337,
     "e2e": 248.0,
-    "improv": 0.0
+    "improv": 27.343750000000007
   },
   {
     "topo": "Ring",
@@ -925,9 +925,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 370.0,
+    "sum_wcrt": 550.0,
     "e2e": 370.0,
-    "improv": 0.0
+    "improv": 32.72727272727273
   },
   {
     "topo": "Ring",
@@ -1055,9 +1055,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 294.0,
+    "sum_wcrt": 494.0,
     "e2e": 294.0,
-    "improv": 0.0
+    "improv": 40.48582995951417
   },
   {
     "topo": "Ring",
@@ -1065,9 +1065,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 363.0,
+    "sum_wcrt": 498.0,
     "e2e": 363.0,
-    "improv": 0.0
+    "improv": 27.10843373493976
   },
   {
     "topo": "Ring",
@@ -1075,9 +1075,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 598.0,
+    "sum_wcrt": 802.0,
     "e2e": 598.0,
-    "improv": 0.0
+    "improv": 25.43640897755611
   },
   {
     "topo": "Ring",
@@ -1205,9 +1205,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 400.0,
+    "sum_wcrt": 640.0,
     "e2e": 400.0,
-    "improv": 0.0
+    "improv": 37.5
   },
   {
     "topo": "Ring",
@@ -1215,9 +1215,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 2,
-    "sum_wcrt": 506.00000000000034,
+    "sum_wcrt": 639.3333333333334,
     "e2e": 506.00000000000034,
-    "improv": 0.0
+    "improv": 20.85505735140767
   },
   {
     "topo": "Ring",
@@ -1225,9 +1225,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 926.0,
+    "sum_wcrt": 1052.0,
     "e2e": 926.0,
-    "improv": 0.0
+    "improv": 11.977186311787072
   },
   {
     "topo": "Ring",
@@ -1245,9 +1245,9 @@
     "flow": "CQF2",
     "cls": "CQF",
     "hops": 2,
-    "sum_wcrt": 1334,
+    "sum_wcrt": 1370,
     "e2e": 1180,
-    "improv": 11.544227886056973
+    "improv": 13.86861313868613
   },
   {
     "topo": "Ring",
@@ -1255,9 +1255,9 @@
     "flow": "CQF3",
     "cls": "CQF",
     "hops": 2,
-    "sum_wcrt": 1318,
+    "sum_wcrt": 1340,
     "e2e": 1159,
-    "improv": 12.06373292867982
+    "improv": 13.507462686567164
   },
   {
     "topo": "Ring",
@@ -1355,9 +1355,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 369.14400000000023,
+    "sum_wcrt": 519.1440000000002,
     "e2e": 369.14400000000023,
-    "improv": 0.0
+    "improv": 28.89371735009938
   },
   {
     "topo": "Mesh",
@@ -1365,9 +1365,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 356.144,
+    "sum_wcrt": 496.144,
     "e2e": 356.144,
-    "improv": 0.0
+    "improv": 28.2176142410268
   },
   {
     "topo": "Mesh",
@@ -1375,9 +1375,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 374.14400000000023,
+    "sum_wcrt": 554.1440000000002,
     "e2e": 374.14400000000023,
-    "improv": 0.0
+    "improv": 32.48253161633076
   },
   {
     "topo": "Mesh",
@@ -1505,9 +1505,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 439.14400000000023,
+    "sum_wcrt": 739.1440000000002,
     "e2e": 439.14400000000023,
-    "improv": 0.0
+    "improv": 40.58749039429393
   },
   {
     "topo": "Mesh",
@@ -1515,9 +1515,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 548.144,
+    "sum_wcrt": 718.144,
     "e2e": 548.144,
-    "improv": 0.0
+    "improv": 23.67213260850192
   },
   {
     "topo": "Mesh",
@@ -1525,9 +1525,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 452.14400000000023,
+    "sum_wcrt": 812.1440000000002,
     "e2e": 452.14400000000023,
-    "improv": 0.0
+    "improv": 44.32711440335703
   },
   {
     "topo": "Mesh",
@@ -1655,9 +1655,9 @@
     "flow": "ATS1",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 597.1440000000002,
+    "sum_wcrt": 957.1440000000002,
     "e2e": 597.1440000000002,
-    "improv": 0.0
+    "improv": 37.61189538878162
   },
   {
     "topo": "Mesh",
@@ -1665,9 +1665,9 @@
     "flow": "ATS2",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 802.4773333333337,
+    "sum_wcrt": 913.144,
     "e2e": 802.4773333333337,
-    "improv": 0.0
+    "improv": 12.119300643345001
   },
   {
     "topo": "Mesh",
@@ -1675,9 +1675,9 @@
     "flow": "ATS3",
     "cls": "ATS",
     "hops": 3,
-    "sum_wcrt": 615.1440000000002,
+    "sum_wcrt": 1065.1440000000002,
     "e2e": 615.1440000000002,
-    "improv": 0.0
+    "improv": 42.247808746986315
   },
   {
     "topo": "Mesh",
@@ -1715,9 +1715,9 @@
     "flow": "NC_E1",
     "cls": "SP+E",
     "hops": 3,
-    "sum_wcrt": 508.288,
+    "sum_wcrt": 530.288,
     "e2e": 256.288,
-    "improv": 49.57819189121128
+    "improv": 51.670035905017656
   },
   {
     "topo": "Mesh",

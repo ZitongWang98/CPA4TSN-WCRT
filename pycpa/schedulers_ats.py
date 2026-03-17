@@ -199,16 +199,152 @@ def _compute_eT_block(task, q, resource):
     return max(indiv_eT, group_eT) - arrival
 
 
+def _compute_eT_block_naive(task, q, resource):
+    """Naive eligible time blocking: bucket-empty model.
+
+    Assumes the token bucket is empty at the start of the busy window.
+    Every frame incurs a fixed blocking of L_plus / CIR.
+    No group eligible time.
+    """
+    L_plus = _L_plus_bits(task, resource)
+    CIR = task.CIR
+    if CIR <= 0:
+        return 0.0
+    return L_plus / CIR * 1e6
+
+
 # ------------------------------------------------------------------
 # ATS Scheduler
 # ------------------------------------------------------------------
 
 class ATSScheduler(analysis.Scheduler):
-    """CPA-based scheduler for ATS (802.1Qcr) mechanism.
+    """Naive CPA-based scheduler for ATS (802.1Qcr) mechanism.
 
-    Supports two traffic classes on the same resource:
-        - ATS flows: token-bucket shaped, Eq.(3.42)
-        - NATS flows: standard strict-priority, Eq.(3.44)
+    Models the ATS shaper as a pure token bucket: assumes the bucket
+    is empty at the start of each busy window (worst case), so every
+    frame incurs a fixed SCH blocking of L_plus / CIR.  No group
+    eligible time, no token-limited interference counting.
+    """
+
+    def __init__(self):
+        analysis.Scheduler.__init__(self)
+
+    def b_plus(self, task, q, details=None, **kwargs):
+        assert task.scheduling_parameter is not None
+        assert task.wcet >= 0
+
+        if model.ForwardingTask.is_forwarding_task(task):
+            return q * task.wcet
+
+        resource = task.resource
+        is_ats = _is_ats(task, resource)
+
+        if is_ats:
+            for attr in ('CIR', 'CBS'):
+                if not hasattr(task, attr):
+                    raise ValueError(
+                        f"ATS task '{task.name}' missing required parameter '{attr}'. "
+                        f"Set via Task(..., {attr}=value)")
+
+        aiq = [task.in_event_model.delta_min(q)]
+        r_final = 0
+        w_final = 0
+
+        for a in aiq:
+            if is_ats:
+                w = self._w_ats_naive(task, q, a, resource, details, **kwargs)
+            else:
+                w = self._w_nats_naive(task, q, a, resource, details, **kwargs)
+            r = w + task.wcet - a
+            if r > r_final:
+                r_final = r
+                w_final = w + task.wcet
+
+        return w_final
+
+    def _w_ats_naive(self, task, q, a, resource, details=None, **kwargs):
+        """Naive ATS: bucket-empty model, SCH = L_plus/CIR per frame."""
+        L_plus = _L_plus_bits(task, resource)
+        CIR = task.CIR
+        # Every frame: bucket empty → wait L_plus/CIR
+        eT_block = L_plus / CIR * 1e6 if CIR > 0 else 0.0
+        eT_abs = a + eT_block
+
+        lpb = 0.0
+        for ti in _get_interferers(task):
+            if ti.scheduling_parameter < task.scheduling_parameter:
+                lpb = max(lpb, ti.wcet)
+
+        # SPB: no token-limited count, use eta_plus only
+        spb_fixed = 0.0
+        src_port = _get_src_port(task)
+        diff_port_flows = []
+        same_port_max = {}
+        for ti in _get_interferers(task):
+            if ti.scheduling_parameter != task.scheduling_parameter:
+                continue
+            ti_port = _get_src_port(ti)
+            if ti_port == src_port and ti_port is not None:
+                same_port_max[ti_port] = max(same_port_max.get(ti_port, 0), ti.wcet)
+            else:
+                diff_port_flows.append(ti)
+        spb_fixed += sum(same_port_max.values())
+
+        w_tilde = lpb + spb_fixed
+        for _ in range(1000):
+            spb_diff = 0.0
+            for ti in diff_port_flows:
+                spb_diff += ti.in_event_model.eta_plus_closed(w_tilde) * ti.wcet
+
+            hpb = 0.0
+            for ti in _get_interferers(task):
+                if ti.scheduling_parameter <= task.scheduling_parameter:
+                    continue
+                hpb += ti.in_event_model.eta_plus_closed(w_tilde) * ti.wcet
+
+            w_tilde_new = lpb + spb_fixed + spb_diff + hpb
+            if w_tilde == w_tilde_new:
+                break
+            w_tilde = w_tilde_new
+
+        w = eT_abs + w_tilde
+        if details is not None:
+            details['eT_block+LPB+SPB+HPB'] = (
+                f'{eT_block:.3f}+{lpb:.3f}+{spb_fixed + spb_diff:.3f}+{hpb:.3f}={w:.3f}')
+        return w
+
+    def _w_nats_naive(self, task, q, a, resource, details=None, **kwargs):
+        """NATS flow: no token-limited HPB counting."""
+        lpb = 0.0
+        for ti in _get_interferers(task):
+            if ti.scheduling_parameter < task.scheduling_parameter:
+                lpb = max(lpb, ti.wcet)
+
+        w = (q - 1) * task.wcet + lpb
+        for _ in range(1000):
+            spb = 0.0
+            for ti in _get_interferers(task):
+                if ti.scheduling_parameter == task.scheduling_parameter:
+                    spb += ti.wcet * ti.in_event_model.eta_plus_closed(w)
+            hpb = 0.0
+            for ti in _get_interferers(task):
+                if ti.scheduling_parameter <= task.scheduling_parameter:
+                    continue
+                hpb += ti.in_event_model.eta_plus_closed(w) * ti.wcet
+            w_new = (q - 1) * task.wcet + lpb + spb + hpb
+            if w == w_new:
+                break
+            w = w_new
+        return w
+
+
+class ATSSchedulerOpt(analysis.Scheduler):
+    """Optimized CPA-based scheduler for ATS (802.1Qcr) mechanism.
+
+    Compared with ATSScheduler (naive bucket-empty model), this version:
+    1. Tracks per-frame token state to compute tighter eligible time blocking.
+    2. Models group eligible time for same-port ATS flows.
+    3. Uses token-limited interference counting: min(eta_plus, n_token).
     """
 
     def __init__(self):

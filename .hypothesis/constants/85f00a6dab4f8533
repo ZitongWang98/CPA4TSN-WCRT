@@ -1,4 +1,0 @@
-# file: /home/wzt/SSD/code/pycpa/pycpa/nxamalthea.py
-# hypothesis_version: 6.151.9
-
-[1.0, '%s not in the Graph', ':', '?', 'ACCESS', 'CallSequence', 'EMType', 'LabelAccess', 'Periodic', 'Sporadic', 'TYPE', 'access', 'bcet', 'calls', 'constraintsModel', 'coreTypes', 'data', 'event_model', 'hwModel', 'instructionsPerCycle', 'jitter', 'label', 'labels', 'lowerBound', 'mapping', 'mappingModel', 'name', 'operatingSystems', 'osModel', 'period', 'priority', 'read', 'recurrence', 'resource', 'ressource', 'runnable', 'runnableItems', 'runnables', 'scheduler', 'schedulingAlgorithm', 'scheduling_parameter', 'stimuli', 'stimuliModel', 'stimulusDeviation', 'swModel', 'task', 'taskAllocation', 'taskSchedulers', 'task_name', 'tasks', 'unit', 'upperBound', 'value', 'w', 'wcet', 'write']

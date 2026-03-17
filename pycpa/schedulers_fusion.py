@@ -47,6 +47,7 @@ from .schedulers_cqfp import (
 )
 from .schedulers_ats import (
     _get_src_port, _is_ats, _n_token, _compute_eT_block,
+    _compute_eT_block_naive,
 )
 
 logger = logging.getLogger("pycpa")
@@ -148,22 +149,23 @@ class FusionScheduler(analysis.Scheduler):
     def _interferer_count(self, ti, delta_t, resource):
         """Frames from ti in interval delta_t, accounting for mechanism.
 
-        Uses eta_plus_closed (closed interval [t, t+Δt]) for time-window-based
-        counting (HPB, LPB express, SKD).  This is equivalent to
-        eta_plus(Δt + ε) used in pycpa's SPNP scheduler and avoids the
-        spurious fixed-point at w=0 where eta_plus(0)=0 would miss
-        simultaneous higher-priority arrivals.
+        Naive ATS: uses eta_plus only (no token-bucket limiting).
         """
         mech_ti, _ = _get_traffic_class(ti, resource)
         if mech_ti == 'CQF':
             t_cqf_ti = _cqf_cycle(ti, resource)
             return ti.in_event_model.eta_plus_closed(
                 _cqf_eta_window(delta_t, t_cqf_ti))
-        elif mech_ti == 'ATS':
-            return min(ti.in_event_model.eta_plus_closed(delta_t),
-                       _n_token(delta_t, ti, resource))
         else:
             return ti.in_event_model.eta_plus_closed(delta_t)
+
+    def _ats_eT_block(self, task, q, resource):
+        """ATS eligible time blocking — naive bucket-empty model."""
+        return _compute_eT_block_naive(task, q, resource)
+
+    def _ats_spb_diff_count(self, ti, w_tilde, resource):
+        """ATS same-priority diff-port interferer count — naive (eta_plus only)."""
+        return ti.in_event_model.eta_plus_closed(w_tilde)
 
     # ------------------------------------------------------------------
     # TAS gate-closed blocking (Eq.3.22, shared)
@@ -256,13 +258,12 @@ class FusionScheduler(analysis.Scheduler):
             tas_gb = self._tas_gate_blocking(task, q, spb, resource)
 
         if mech_task == 'ATS':
-            eT_block = _compute_eT_block(task, q, resource)
+            eT_block = self._ats_eT_block(task, q, resource)
             w_tilde = lpb + spb_fixed
             for _ in range(1000):
                 spb_diff = 0
                 for ti in diff_port_flows:
-                    n = min(ti.in_event_model.eta_plus_closed(w_tilde),
-                            _n_token(w_tilde, ti, resource))
+                    n = self._ats_spb_diff_count(ti, w_tilde, resource)
                     spb_diff += n * ti.wcet
 
                 hpb = 0
@@ -393,7 +394,7 @@ class FusionScheduler(analysis.Scheduler):
             for _ in range(1000):
                 delta_t = max(w - phi, 0) if phi > 0 else w
                 if mech_task == 'ATS':
-                    delta_t = max(w - _compute_eT_block(task, q, resource), 0)
+                    delta_t = max(w - self._ats_eT_block(task, q, resource), 0)
 
                 lpb_bc = 0
                 for ti in _get_interferers(task):
@@ -416,7 +417,7 @@ class FusionScheduler(analysis.Scheduler):
 
                 schb = tas_gb
                 if mech_task == 'ATS':
-                    schb += _compute_eT_block(task, q, resource)
+                    schb += self._ats_eT_block(task, q, resource)
 
                 if case2:
                     # Case 2: SKD = fixed fragments + HP preemptable fragments
@@ -540,14 +541,40 @@ class FusionScheduler(analysis.Scheduler):
 class FusionSchedulerE2E(FusionScheduler):
     """Fusion scheduler with E2E multi-hop correction support.
 
-    Same per-hop WCRT as FusionScheduler.  Additionally records attributes
-    into task_results so that path_analysis can apply E2E corrections:
+    Uses optimized ATS analysis: per-frame token tracking, group eligible
+    time, and token-limited interference counting.
+
+    Same per-hop WCRT as FusionScheduler otherwise.  Additionally records
+    attributes into task_results so that path_analysis can apply E2E
+    corrections:
 
     - ST flows: TAS E2E correction (same as TASSchedulerE2E)
     - CQF flows (C+E, C+P): CQF E2E correction = (N-1)*T_CQF + WCRT_last
     - Other NST flows (ATS+E, NC+E, NC+P): TAS gate-closed E2E correction
       (treated as NST in TASSchedulerE2E)
     """
+
+    def _interferer_count(self, ti, delta_t, resource):
+        """Optimized: ATS interferers use min(eta_plus, n_token)."""
+        mech_ti, _ = _get_traffic_class(ti, resource)
+        if mech_ti == 'CQF':
+            t_cqf_ti = _cqf_cycle(ti, resource)
+            return ti.in_event_model.eta_plus_closed(
+                _cqf_eta_window(delta_t, t_cqf_ti))
+        elif mech_ti == 'ATS':
+            return min(ti.in_event_model.eta_plus_closed(delta_t),
+                       _n_token(delta_t, ti, resource))
+        else:
+            return ti.in_event_model.eta_plus_closed(delta_t)
+
+    def _ats_eT_block(self, task, q, resource):
+        """Optimized: per-frame token tracking + group eligible time."""
+        return _compute_eT_block(task, q, resource)
+
+    def _ats_spb_diff_count(self, ti, w_tilde, resource):
+        """Optimized: token-limited count for same-priority diff-port."""
+        return min(ti.in_event_model.eta_plus_closed(w_tilde),
+                   _n_token(w_tilde, ti, resource))
 
     def b_plus(self, task, q, details=None, **kwargs):
         w = FusionScheduler.b_plus(self, task, q, details=details, **kwargs)
@@ -587,9 +614,13 @@ class FusionSchedulerE2E(FusionScheduler):
             # NST (ATS+E, NC+E, NC+P): gate_closed = sum(TAS windows) + guard_band
             tw_sum = _tas_gate_closed_duration(resource)
             guard_band = _tas_guard_band(task, resource)
-            task_results[task].gate_closed_duration = tw_sum + guard_band
             tc = resource.effective_tas_cycle_time()
-            task_results[task].tas_available_window = tc - tw_sum - guard_band
+            if tc is not None:
+                task_results[task].gate_closed_duration = tw_sum + guard_band
+                task_results[task].tas_available_window = tc - tw_sum - guard_band
+            else:
+                task_results[task].gate_closed_duration = 0
+                task_results[task].tas_available_window = 0
 
         return w
 

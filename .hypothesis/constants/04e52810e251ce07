@@ -1,4 +1,0 @@
-# file: /home/wzt/SSD/code/pycpa/pycpa/path_analysis.py
-# hypothesis_version: 6.151.9
-
-['-', '-PHI+J', '-WCRT', '-delay', '-inf', 'J', 'cqf_cycle_time', 'data-age', 'e2e_improved', 'gate_closed_duration', 'is_tsn_resource', 'max', 'min', 'non_gate_closed', 'phi', 'reaction-time', 'resource', 'scheduler', 'tas_aligned']

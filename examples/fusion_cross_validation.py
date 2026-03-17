@@ -8,9 +8,9 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from pycpa import model, analysis
-from pycpa.schedulers_fusion import FusionScheduler
+from pycpa.schedulers_fusion import FusionSchedulerE2E as FusionScheduler
 from pycpa.schedulers_cqfp import CQFPScheduler
-from pycpa.schedulers_ats import ATSScheduler
+from pycpa.schedulers_ats import ATSSchedulerOpt as ATSScheduler
 from pycpa.schedulers import TASScheduler
 
 PASS = 0

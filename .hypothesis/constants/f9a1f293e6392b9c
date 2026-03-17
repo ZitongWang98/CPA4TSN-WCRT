@@ -1,4 +1,0 @@
-# file: /home/wzt/SSD/code/pycpa/pycpa/schedulers.py
-# hypothesis_version: 6.151.9
-
-[1e-09, 1000, '%d*%d', '%d*%d=%d', '%d*min(%d,%d)=%d*%d', '%s.TDMASlot', '*', '+', ':', ':eta*WCET', ':offset', '=', 'I_TDMA', 'P', 'TAS', 'blocker', 'is_tsn_resource', 'pycpa', 'q*WCET', 'scheduling_parameter', 'task_results', 'tmp']
