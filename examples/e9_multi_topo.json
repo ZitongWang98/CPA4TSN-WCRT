@@ -1,0 +1,1802 @@
+[
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 254.0,
+    "e2e": 254.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 238.0,
+    "e2e": 238.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 373.0,
+    "e2e": 373.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 1917,
+    "e2e": 1638,
+    "improv": 14.553990610328638
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 1870,
+    "e2e": 1618,
+    "improv": 13.475935828877006
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1283,
+    "e2e": 1138,
+    "improv": 11.301636788776305
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 575.576,
+    "e2e": 252.57600000000002,
+    "improv": 56.11769774973244
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 493.72,
+    "e2e": 179.57600000000002,
+    "improv": 63.62796726889734
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 306.152,
+    "e2e": 196.152,
+    "improv": 35.929864903707966
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 293.768,
+    "e2e": 186.76799999999997,
+    "improv": 36.423300019062665
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 514.768,
+    "e2e": 195.76800000000003,
+    "improv": 61.96966400397849
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1658,
+    "e2e": 38,
+    "improv": 97.708082026538
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1648,
+    "e2e": 24,
+    "improv": 98.54368932038835
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 828,
+    "e2e": 18,
+    "improv": 97.82608695652173
+  },
+  {
+    "topo": "Linear",
+    "load": "Light",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 830,
+    "e2e": 20,
+    "improv": 97.59036144578313
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 312.0,
+    "e2e": 312.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 278.0,
+    "e2e": 278.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 607.0,
+    "e2e": 607.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 2041,
+    "e2e": 1679,
+    "improv": 17.73640372366487
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 1944,
+    "e2e": 1636,
+    "improv": 15.843621399176955
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1371,
+    "e2e": 1179,
+    "improv": 14.00437636761488
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 756.576,
+    "e2e": 409.576,
+    "improv": 45.86452649832932
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 585.72,
+    "e2e": 257.576,
+    "improv": 56.02403878986546
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 418.152,
+    "e2e": 298.152,
+    "improv": 28.697698444584745
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 392.768,
+    "e2e": 277.768,
+    "improv": 29.279371028189672
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 632.768,
+    "e2e": 293.76800000000003,
+    "improv": 53.574137756650146
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1716,
+    "e2e": 76,
+    "improv": 95.57109557109557
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1696,
+    "e2e": 48,
+    "improv": 97.16981132075472
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 856,
+    "e2e": 36,
+    "improv": 95.7943925233645
+  },
+  {
+    "topo": "Linear",
+    "load": "Medium",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 860,
+    "e2e": 40,
+    "improv": 95.34883720930233
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 426.0,
+    "e2e": 426.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 369.3333333333337,
+    "e2e": 369.3333333333337,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 938.0,
+    "e2e": 938.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 2140,
+    "e2e": 1699,
+    "improv": 20.60747663551402
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 3,
+    "sum_wcrt": 2014,
+    "e2e": 1654,
+    "improv": 17.874875868917577
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1436,
+    "e2e": 1199,
+    "improv": 16.504178272980504
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 909.576,
+    "e2e": 669.576,
+    "improv": 26.385920472835693
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 673.72,
+    "e2e": 332.576,
+    "improv": 50.635872469275064
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 523.152,
+    "e2e": 393.15200000000004,
+    "improv": 24.84937456035722
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 467.76800000000003,
+    "e2e": 345.76800000000003,
+    "improv": 26.081305262437787
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 746.768,
+    "e2e": 388.76800000000003,
+    "improv": 47.93992243909755
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1774,
+    "e2e": 529,
+    "improv": 70.1803833145434
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1744,
+    "e2e": 72,
+    "improv": 95.87155963302753
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 884,
+    "e2e": 54,
+    "improv": 93.89140271493213
+  },
+  {
+    "topo": "Linear",
+    "load": "Heavy",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 890,
+    "e2e": 60,
+    "improv": 93.25842696629213
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 254.0,
+    "e2e": 254.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 238.0,
+    "e2e": 238.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 4,
+    "sum_wcrt": 493.0,
+    "e2e": 493.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1228.288,
+    "e2e": 1108.144,
+    "improv": 9.781419341392247
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1246,
+    "e2e": 1126,
+    "improv": 9.630818619582666
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1242,
+    "e2e": 1125,
+    "improv": 9.420289855072465
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 513.432,
+    "e2e": 191.43200000000002,
+    "improv": 62.7152183736113
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 472.576,
+    "e2e": 163.288,
+    "improv": 65.44725081256772
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 272.96,
+    "e2e": 162.95999999999998,
+    "improv": 40.2989449003517
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 267.384,
+    "e2e": 160.38400000000001,
+    "improv": 40.017353319570354
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 509.10400000000004,
+    "e2e": 190.95999999999998,
+    "improv": 62.49096451805526
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1644,
+    "e2e": 24,
+    "improv": 98.54014598540147
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1653,
+    "e2e": 29,
+    "improv": 98.24561403508771
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 822,
+    "e2e": 13,
+    "improv": 98.41849148418491
+  },
+  {
+    "topo": "Tree",
+    "load": "Light",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 827,
+    "e2e": 16,
+    "improv": 98.0652962515115
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 312.0,
+    "e2e": 312.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 278.0,
+    "e2e": 278.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 4,
+    "sum_wcrt": 593.0,
+    "e2e": 593.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1256.288,
+    "e2e": 1116.144,
+    "improv": 11.15540385644056
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1296,
+    "e2e": 1154,
+    "improv": 10.95679012345679
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1286,
+    "e2e": 1152,
+    "improv": 10.419906687402799
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 627.432,
+    "e2e": 283.432,
+    "improv": 54.826658506419825
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 542.576,
+    "e2e": 225.288,
+    "improv": 58.47807496092713
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 349.96,
+    "e2e": 229.95999999999998,
+    "improv": 34.28963310092582
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 336.384,
+    "e2e": 221.38400000000001,
+    "improv": 34.18711948249619
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 621.104,
+    "e2e": 284.96000000000004,
+    "improv": 54.12040495633581
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1688,
+    "e2e": 48,
+    "improv": 97.1563981042654
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1706,
+    "e2e": 58,
+    "improv": 96.6002344665885
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 844,
+    "e2e": 26,
+    "improv": 96.91943127962085
+  },
+  {
+    "topo": "Tree",
+    "load": "Medium",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 854,
+    "e2e": 32,
+    "improv": 96.25292740046838
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 426.0,
+    "e2e": 426.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 369.3333333333337,
+    "e2e": 369.3333333333337,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 4,
+    "sum_wcrt": 806.0,
+    "e2e": 806.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1282.288,
+    "e2e": 1123.144,
+    "improv": 12.410940443956427
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1342,
+    "e2e": 1180,
+    "improv": 12.071535022354695
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1328,
+    "e2e": 1177,
+    "improv": 11.370481927710843
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 737.432,
+    "e2e": 371.432,
+    "improv": 49.631694854576416
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 4,
+    "sum_wcrt": 610.576,
+    "e2e": 286.288,
+    "improv": 53.111815728099366
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 421.96,
+    "e2e": 291.96,
+    "improv": 30.80860745094322
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 403.384,
+    "e2e": 281.384,
+    "improv": 30.244134621105445
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 4,
+    "sum_wcrt": 728.104,
+    "e2e": 374.96000000000004,
+    "improv": 48.50186237130959
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1732,
+    "e2e": 72,
+    "improv": 95.84295612009238
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 4,
+    "sum_wcrt": 1759,
+    "e2e": 87,
+    "improv": 95.05400795906766
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 866,
+    "e2e": 39,
+    "improv": 95.49653579676675
+  },
+  {
+    "topo": "Tree",
+    "load": "Heavy",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 881,
+    "e2e": 48,
+    "improv": 94.5516458569807
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 246.0,
+    "e2e": 246.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 248.0,
+    "e2e": 248.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 370.0,
+    "e2e": 370.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1244,
+    "e2e": 1127,
+    "improv": 9.405144694533762
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1256,
+    "e2e": 1132,
+    "improv": 9.872611464968154
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1245,
+    "e2e": 1119,
+    "improv": 10.120481927710843
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 327.86400000000003,
+    "e2e": 125.57600000000002,
+    "improv": 61.69875314154649
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 323.72,
+    "e2e": 121.43200000000002,
+    "improv": 62.48857036945509
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 238.384,
+    "e2e": 132.384,
+    "improv": 44.46607154842607
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 248.384,
+    "e2e": 141.384,
+    "improv": 43.078459160010304
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 367.57599999999996,
+    "e2e": 153.57599999999996,
+    "improv": 58.21925261714584
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1238,
+    "e2e": 23,
+    "improv": 98.1421647819063
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1246,
+    "e2e": 28,
+    "improv": 97.75280898876404
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 828,
+    "e2e": 18,
+    "improv": 97.82608695652173
+  },
+  {
+    "topo": "Ring",
+    "load": "Light",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 834,
+    "e2e": 22,
+    "improv": 97.3621103117506
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 294.0,
+    "e2e": 294.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 363.0,
+    "e2e": 363.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 598.0,
+    "e2e": 598.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1290,
+    "e2e": 1155,
+    "improv": 10.465116279069768
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1314,
+    "e2e": 1166,
+    "improv": 11.263318112633181
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1295,
+    "e2e": 1140,
+    "improv": 11.96911196911197
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 351.86400000000003,
+    "e2e": 149.57600000000002,
+    "improv": 57.49039401586976
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 341.72,
+    "e2e": 139.43200000000002,
+    "improv": 59.19700339459206
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 278.384,
+    "e2e": 166.38400000000001,
+    "improv": 40.23219725271567
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 300.384,
+    "e2e": 185.38400000000001,
+    "improv": 38.28432939171194
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 440.576,
+    "e2e": 210.57600000000002,
+    "improv": 52.20438698431145
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1276,
+    "e2e": 46,
+    "improv": 96.3949843260188
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1292,
+    "e2e": 56,
+    "improv": 95.6656346749226
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 856,
+    "e2e": 36,
+    "improv": 95.7943925233645
+  },
+  {
+    "topo": "Ring",
+    "load": "Medium",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 868,
+    "e2e": 44,
+    "improv": 94.93087557603687
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 400.0,
+    "e2e": 400.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 2,
+    "sum_wcrt": 506.00000000000034,
+    "e2e": 506.00000000000034,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 926.0,
+    "e2e": 926.0,
+    "improv": 0.0
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1334,
+    "e2e": 1182,
+    "improv": 11.394302848575713
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1334,
+    "e2e": 1180,
+    "improv": 11.544227886056973
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1318,
+    "e2e": 1159,
+    "improv": 12.06373292867982
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 372.86400000000003,
+    "e2e": 170.57600000000002,
+    "improv": 54.252488843117064
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 359.72,
+    "e2e": 157.43200000000002,
+    "improv": 56.23484932725453
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 316.384,
+    "e2e": 198.38400000000001,
+    "improv": 37.296449883685646
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 348.384,
+    "e2e": 226.38400000000001,
+    "improv": 35.0188297970056
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 507.576,
+    "e2e": 263.576,
+    "improv": 48.07161883146563
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1314,
+    "e2e": 69,
+    "improv": 94.74885844748859
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1338,
+    "e2e": 84,
+    "improv": 93.72197309417041
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 884,
+    "e2e": 54,
+    "improv": 93.89140271493213
+  },
+  {
+    "topo": "Ring",
+    "load": "Heavy",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 902,
+    "e2e": 66,
+    "improv": 92.6829268292683
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 369.14400000000023,
+    "e2e": 369.14400000000023,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 356.144,
+    "e2e": 356.144,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 374.14400000000023,
+    "e2e": 374.14400000000023,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1247.144,
+    "e2e": 1128.144,
+    "improv": 9.541801107169661
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1234.288,
+    "e2e": 1126,
+    "improv": 8.77331708644984
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1234,
+    "e2e": 1117,
+    "improv": 9.481361426256079
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 376.288,
+    "e2e": 159.288,
+    "improv": 57.66859426822008
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 367,
+    "e2e": 155,
+    "improv": 57.765667574931875
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 227.336,
+    "e2e": 121.336,
+    "improv": 46.627019037899856
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 270.384,
+    "e2e": 160.38400000000001,
+    "improv": 40.68288064382507
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 371.528,
+    "e2e": 163.38400000000001,
+    "improv": 56.0237720979307
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1238,
+    "e2e": 23,
+    "improv": 98.1421647819063
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1236,
+    "e2e": 18,
+    "improv": 98.54368932038835
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 828,
+    "e2e": 18,
+    "improv": 97.82608695652173
+  },
+  {
+    "topo": "Mesh",
+    "load": "Light",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 820,
+    "e2e": 10,
+    "improv": 98.78048780487805
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 439.14400000000023,
+    "e2e": 439.14400000000023,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 548.144,
+    "e2e": 548.144,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 452.14400000000023,
+    "e2e": 452.14400000000023,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1297.144,
+    "e2e": 1158.144,
+    "improv": 10.715849589559832
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1266.288,
+    "e2e": 1152,
+    "improv": 9.02543497213904
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1268,
+    "e2e": 1134,
+    "improv": 10.56782334384858
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 456.288,
+    "e2e": 221.288,
+    "improv": 51.502559786801314
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 436,
+    "e2e": 211,
+    "improv": 51.60550458715596
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 255.336,
+    "e2e": 143.336,
+    "improv": 43.86377165773725
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 344.384,
+    "e2e": 224.38400000000001,
+    "improv": 34.844824382085115
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 446.528,
+    "e2e": 230.38400000000001,
+    "improv": 48.405475132578474
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1276,
+    "e2e": 46,
+    "improv": 96.3949843260188
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1272,
+    "e2e": 36,
+    "improv": 97.16981132075472
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 856,
+    "e2e": 36,
+    "improv": 95.7943925233645
+  },
+  {
+    "topo": "Mesh",
+    "load": "Medium",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 840,
+    "e2e": 20,
+    "improv": 97.61904761904762
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ATS1",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 597.1440000000002,
+    "e2e": 597.1440000000002,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ATS2",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 802.4773333333337,
+    "e2e": 802.4773333333337,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ATS3",
+    "cls": "ATS",
+    "hops": 3,
+    "sum_wcrt": 615.1440000000002,
+    "e2e": 615.1440000000002,
+    "improv": 0.0
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "CQF1",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1343.144,
+    "e2e": 1185.144,
+    "improv": 11.763444574818486
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "CQF2",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1298.288,
+    "e2e": 1178,
+    "improv": 9.265124533231456
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "CQF3",
+    "cls": "CQF",
+    "hops": 2,
+    "sum_wcrt": 1302,
+    "e2e": 1151,
+    "improv": 11.597542242703533
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "NC_E1",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 508.288,
+    "e2e": 256.288,
+    "improv": 49.57819189121128
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "NC_E2",
+    "cls": "SP+E",
+    "hops": 3,
+    "sum_wcrt": 503,
+    "e2e": 266,
+    "improv": 47.11729622266402
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "NC_P1",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 281.336,
+    "e2e": 163.336,
+    "improv": 41.942730400659705
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "NC_P2",
+    "cls": "SP+P",
+    "hops": 2,
+    "sum_wcrt": 414.384,
+    "e2e": 284.384,
+    "improv": 31.37186763967721
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "NC_P3",
+    "cls": "SP+P",
+    "hops": 3,
+    "sum_wcrt": 516.528,
+    "e2e": 293.384,
+    "improv": 43.20075581575442
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ST1",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1314,
+    "e2e": 69,
+    "improv": 94.74885844748859
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ST2",
+    "cls": "ST",
+    "hops": 3,
+    "sum_wcrt": 1308,
+    "e2e": 54,
+    "improv": 95.87155963302753
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ST3",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 884,
+    "e2e": 54,
+    "improv": 93.89140271493213
+  },
+  {
+    "topo": "Mesh",
+    "load": "Heavy",
+    "flow": "ST4",
+    "cls": "ST",
+    "hops": 2,
+    "sum_wcrt": 860,
+    "e2e": 30,
+    "improv": 96.51162790697676
+  }
+]

@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/pycpa/graph.py
+# hypothesis_version: 6.151.9
+
+[' param: %s', '"{n1}" -> "{n2}"', '"{name}"', '#aaaacc', '#aaccaa', '%s="%s"', '(%g,%g)', ',', ',\n', ':', ';\n', 'Junction ', 'LR', 'T_', 'True', '[', ']', 'blue', 'cluster_', 'dashed', 'diamond', 'dot', 'dotted', 'graph', 'hexagon', 'none', 'open', 'out', 'strict digraph {\n', 'subgraph "{name}"', 'true', 'utf-8', 'w', 'xlib', '{\n', '}\n']

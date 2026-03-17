@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/examples/../pycpa/schedulers_cqfp.py
+# hypothesis_version: 6.151.9
+
+[1000000.0, 1000000000.0, 143, 1000, 'is_tsn_resource', 'linkspeed', 'payload', 'pycpa', 'task_results']

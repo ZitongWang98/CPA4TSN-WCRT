@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/forward_analysis/analyzer.py
+# hypothesis_version: 6.151.9
+
+['AnalysisResult', 'HopResult']

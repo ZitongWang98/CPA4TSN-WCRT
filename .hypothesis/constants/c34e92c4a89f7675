@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/forward_analysis/fa_fpfifo.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1e-09, 1000, '-', '=', 'forwarding_delay', 'prev_task', 'resource', 'scheduling_parameter']

@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/examples/fusion_cross_validation.py
+# hypothesis_version: 6.151.9
+
+[1e-06, 50000000.0, 80000000.0, 100000000.0, 1000000000.0, 100, 200, 300, 400, 500, 800, 1000, 2000, 6000, 10000, 12000, '..', '=', 'ATS', 'ATS Cross-Validation', 'ATS-1: Single ATS', 'ATS-2: ATS + HP NATS', 'ATS-3: ATS + LP NATS', 'ATS1', 'ATS_a', 'ATS_b', 'ATS_hp', 'ATS_mid', 'CE_hp', 'CP1', 'CP_lp', 'CQF', 'CQFP-3: C+E only', 'CQFP-4: C+P only', 'HP', 'NATS_hp', 'NATS_lp', 'NE_hp', 'NE_lp', 'NP_mid', 'OK', 'R', 'ST1', 'ST2', 'TAS', 'TAS Cross-Validation', 'TAS-1: Single ST', '__main__', 'payload', 'portA', 'portB']

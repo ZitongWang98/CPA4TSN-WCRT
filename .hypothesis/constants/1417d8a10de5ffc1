@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/pycpa/schedulers_ats.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1e-06, 1000000.0, 1000000000.0, 1000, 'CBS', 'CIR', 'LPB+SPB+HPB', 'eT_block+LPB+SPB+HPB', 'is_tsn_resource', 'linkspeed', 'pycpa', 'q', 'src_port']

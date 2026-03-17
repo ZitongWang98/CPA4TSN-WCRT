@@ -17,9 +17,9 @@ subgraph "cluster_R2"{
   "R2"[color="#aaaacc",
 shape="none"];
 
-  "T22"[label="T22"];
-
   "T21"[label="T21"];
+
+  "T22"[label="T22"];
 
 }
 "T12" -> "T22"[len="10",

@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/examples/fusion_cross_validation_mixed.py
+# hypothesis_version: 6.151.9
+
+[0.001, 113.144, 121.144, 181.144, 222.288, 320.192, 613.144, 100000000.0, 1000000000.0, 100, 200, 400, 500, 522, 1000, 2000, 12000, '  PASSED', '..', '=', 'ATS', 'ATSE', 'CE', 'CQF', 'Fusion', 'HP', 'LP', 'NCE', 'NCP', 'R', 'SPNP', 'ST', 'TAS', '[MIX-1: TAS + NC+E]', '[MIX-2: TAS + NC+P]', '[MIX-3: TAS + CQF+E]', '[MIX-4: TAS + ATS+E]', '[MIX-9: Jitter > 0]', '__main__']

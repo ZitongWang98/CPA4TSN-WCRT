@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/pycpa/options.py
+# hypothesis_version: 6.151.9
+
+[b'busy_window', b'jitter', b'jitter_bmin', b'jitter_dmin', b'jitter_offset', b'optimal', 1e-12, 1000, '%s', '--check_violations', '--debug', '--e2e_improved', '--max_iterations', '--max_wcrt', '--nocaching', '--propagation', '--show', '--timeout', '--verbose', '-d', '-v', ':', 'Scheduling Analysis', 'Version ', '_', 'be more talkative', 'busy_window', 'debug', 'inf', 'invoked via: ', 'print debug messages', 'store_true', 'verbose']

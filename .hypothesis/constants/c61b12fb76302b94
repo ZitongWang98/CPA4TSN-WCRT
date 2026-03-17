@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/pycpa/model.py
+# hypothesis_version: 6.151.9
+
+[0.0, -100, 100, 1000, 10000, '\t%s', '\nresources:', ' -> ', ' > ', ' junction', ' n=%d', '%d every %d, dmin=%d', ')', ') = ', ', ', ': ', 'ATS', 'CBS', 'CQF', 'FD_', 'Jitter', 'NaN', 'OutEventModelClass', 'P={} J={} d={}', 'Period', 'Standard', 'Subgraph %d', 'TAS', '_is_forwarding_task', 'ats_', 'cbs', 'cir', 'delta_plus(', 'deltaplus(n)=%d', 'dmin', 'ebs', 'eir', 'forwarding_delay', 'inf', 'is_tsn_resource', 'ltd. direct', 'min', 'nocaching', 'paths:', 'resource', 'scheduler_group', 'scheduling_parameter', 'trace-based', 'unknown', 'w=%f']

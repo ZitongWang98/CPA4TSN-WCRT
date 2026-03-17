@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/pycpa/propagation.py
+# hypothesis_version: 6.151.9
+
+['++', '+J=', ',O=', ',dmin=', 'busy_window', 'jitter', 'jitter_bmin', 'jitter_dmin', 'jitter_offset', 'optimal', 'propagation']

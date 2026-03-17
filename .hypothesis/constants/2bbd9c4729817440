@@ -1,0 +1,4 @@
+# file: /home/wzt/SSD/code/pycpa/examples/../pycpa/schedulers_fusion.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1000, 'ATS', 'CBS', 'CIR', 'CQF', 'TAS', 'is_tsn_resource', 'payload', 'pycpa']
