@@ -117,13 +117,15 @@ class FusionConfigOptimizer:
     """
 
     def __init__(self, system, deadlines, bw_min=None, tas_step=1.0,
-                 cqf_candidates=None, max_iterations=100):
+                 cqf_candidates=None, max_iterations=100,
+                 bisection=True):
         self.system = system
         self.deadlines = deadlines  # {path: deadline}
         self.bw_min = bw_min
         self.tas_step = tas_step
         self.cqf_candidates = cqf_candidates
         self.max_iter = max_iterations
+        self.bisection = bisection
         self._history = []
         self._total_iters = 0
 
@@ -132,8 +134,13 @@ class FusionConfigOptimizer:
     # ------------------------------------------------------------------
 
     def _evaluate(self):
-        """Run WCRT analysis + path E2E.  Returns {path: (lmin, lmax)}."""
-        task_results = analysis.analyze_system(self.system)
+        """Run WCRT analysis + path E2E.  Returns {path: (lmin, lmax)}.
+        Returns None if analysis fails (e.g. non-convergent busy window).
+        """
+        try:
+            task_results = analysis.analyze_system(self.system)
+        except (AssertionError, ValueError):
+            return None
         e2e = {}
         for p in self.deadlines:
             e2e[p] = path_analysis.end_to_end_latency(p, task_results)
@@ -263,20 +270,70 @@ class FusionConfigOptimizer:
     # ------------------------------------------------------------------
 
     def _layer1_tas_window(self):
-        """Increase TAS windows until all ST flows meet deadlines."""
-        for _ in range(self.max_iter):
-            e2e = self._evaluate()
-            violations = self._violating_paths(e2e, mechanism='TAS')
-            if not violations:
-                return e2e
+        """Increase TAS windows until all ST flows meet deadlines.
 
-            unsched, reason = self._check_unschedulable()
-            if unsched:
-                return None  # unschedulable
+        If ``self.bisection`` is True, uses bisection refinement:
+        start with a large step, increase until feasible, back off,
+        halve the step, and repeat until the minimum granularity
+        ``self.tas_step``.  Otherwise, uses a fixed step size.
+        """
+        if not self.bisection:
+            return self._layer1_fixed_step()
 
-            # Increase TAS window on resources along the worst violating path
-            worst_path = violations[0][0]
-            for task in worst_path.tasks:
+        step = max(self.tas_step, 50)  # start coarse
+
+        while step >= self.tas_step:
+            # Increase until feasible or budget exhausted
+            for _ in range(self.max_iter):
+                e2e = self._evaluate()
+                if e2e is None:
+                    return None
+                violations = self._violating_paths(e2e, mechanism='TAS')
+                if not violations:
+                    break
+
+                unsched, _ = self._check_unschedulable()
+                if unsched:
+                    return None
+
+                self._bump_tas_windows(violations[0][0], step)
+                self._total_iters += 1
+            else:
+                return None  # max iterations exhausted
+
+            if step <= self.tas_step:
+                break  # finest granularity reached, done
+
+            # Back off one step and refine
+            self._bump_tas_windows(violations[0][0] if violations else None,
+                                   -step, all_resources=True)
+            step = max(step // 2, self.tas_step)
+
+        # Final feasibility check
+        e2e = self._evaluate()
+        if e2e is None:
+            return None
+        if self._violating_paths(e2e, mechanism='TAS'):
+            return None
+        return e2e
+
+    def _bump_tas_windows(self, path, step, all_resources=False):
+        """Adjust TAS windows by ``step`` on resources along ``path``.
+        If ``all_resources`` is True, adjust all TAS-enabled resources
+        (used for uniform back-off after bisection).
+        """
+        targets = []
+        if all_resources:
+            for r in self.system.resources:
+                if not getattr(r, 'is_tsn_resource', False):
+                    continue
+                if not r.tas_window_time_by_priority:
+                    continue
+                for prio in list(r.tas_window_time_by_priority):
+                    if r.priority_uses_tas(prio):
+                        targets.append((r, prio))
+        elif path is not None:
+            for task in path.tasks:
                 if model.ForwardingTask.is_forwarding_task(task):
                     continue
                 r = task.resource
@@ -285,16 +342,31 @@ class FusionConfigOptimizer:
                 prio = task.scheduling_parameter
                 if not r.priority_uses_tas(prio):
                     continue
-                if r.tas_window_time_by_priority is None:
-                    r.tas_window_time_by_priority = {}
-                cur = r.effective_tas_window_time(prio) or 0
-                r.tas_window_time_by_priority[prio] = cur + self.tas_step
+                targets.append((r, prio))
 
-            # Synchronize: all TAS tasks in the same chain must see the
-            # same window.  Take the max across all ports in each chain.
-            self._sync_tas_windows()
+        for r, prio in targets:
+            if r.tas_window_time_by_priority is None:
+                r.tas_window_time_by_priority = {}
+            cur = r.effective_tas_window_time(prio) or 0
+            r.tas_window_time_by_priority[prio] = max(0, cur + step)
 
-        return None  # max iterations
+        self._sync_tas_windows()
+
+    def _layer1_fixed_step(self):
+        """Fixed-step Layer 1 (for comparison experiments)."""
+        for _ in range(self.max_iter):
+            e2e = self._evaluate()
+            if e2e is None:
+                return None
+            violations = self._violating_paths(e2e, mechanism='TAS')
+            if not violations:
+                return e2e
+            unsched, _ = self._check_unschedulable()
+            if unsched:
+                return None
+            self._bump_tas_windows(violations[0][0], self.tas_step)
+            self._total_iters += 1
+        return None
 
     def _sync_chain_params(self):
         """Ensure TAS window and CQF cycle consistency across multi-hop chains.
@@ -303,37 +375,50 @@ class FusionConfigOptimizer:
         chain.  With port-level resources each port is independent, so we
         synchronize after any parameter change: TAS windows take the max,
         CQF cycles take the min (most aggressive).
+
+        Runs until convergence because shared resources may propagate
+        changes across multiple paths.
         """
-        for path in self.system.paths:
-            tsn_tasks = [(t, t.resource) for t in path.tasks
-                         if not model.ForwardingTask.is_forwarding_task(t)
-                         and getattr(t.resource, 'is_tsn_resource', False)]
-            if len(tsn_tasks) < 2:
-                continue
+        for _round in range(20):  # convergence guard
+            changed = False
+            for path in self.system.paths:
+                tsn_tasks = [(t, t.resource) for t in path.tasks
+                             if not model.ForwardingTask.is_forwarding_task(t)
+                             and getattr(t.resource, 'is_tsn_resource', False)]
+                if len(tsn_tasks) < 2:
+                    continue
 
-            # TAS window sync (max)
-            tas = [(t, r) for t, r in tsn_tasks
-                   if r.priority_uses_tas(t.scheduling_parameter)]
-            if len(tas) >= 2:
-                prio = tas[0][0].scheduling_parameter
-                max_w = max(r.effective_tas_window_time(prio) or 0
-                            for _, r in tas)
-                for _, r in tas:
-                    if r.tas_window_time_by_priority is None:
-                        r.tas_window_time_by_priority = {}
-                    r.tas_window_time_by_priority[prio] = max_w
+                # TAS window sync (max)
+                tas = [(t, r) for t, r in tsn_tasks
+                       if r.priority_uses_tas(t.scheduling_parameter)]
+                if len(tas) >= 2:
+                    prio = tas[0][0].scheduling_parameter
+                    max_w = max(r.effective_tas_window_time(prio) or 0
+                                for _, r in tas)
+                    for _, r in tas:
+                        if r.tas_window_time_by_priority is None:
+                            r.tas_window_time_by_priority = {}
+                        cur = r.effective_tas_window_time(prio) or 0
+                        if cur != max_w:
+                            r.tas_window_time_by_priority[prio] = max_w
+                            changed = True
 
-            # CQF cycle sync (min)
-            cqf = [(t, r) for t, r in tsn_tasks
-                   if r.priority_uses_cqf(t.scheduling_parameter)]
-            if len(cqf) >= 2:
-                prio = cqf[0][0].scheduling_parameter
-                min_c = min(r.effective_cqf_cycle_time(prio)
-                            for _, r in cqf)
-                for _, r in cqf:
-                    pair = r.get_cqf_pair_for_priority(prio)
-                    if pair and r.cqf_cycle_time_by_pair is not None:
-                        r.cqf_cycle_time_by_pair[pair] = min_c
+                # CQF cycle sync (min)
+                cqf = [(t, r) for t, r in tsn_tasks
+                       if r.priority_uses_cqf(t.scheduling_parameter)]
+                if len(cqf) >= 2:
+                    prio = cqf[0][0].scheduling_parameter
+                    min_c = min(r.effective_cqf_cycle_time(prio)
+                                for _, r in cqf)
+                    for _, r in cqf:
+                        pair = r.get_cqf_pair_for_priority(prio)
+                        if pair and r.cqf_cycle_time_by_pair is not None:
+                            cur = r.cqf_cycle_time_by_pair.get(pair)
+                            if cur != min_c:
+                                r.cqf_cycle_time_by_pair[pair] = min_c
+                                changed = True
+            if not changed:
+                break
 
     # backward compat alias
     _sync_tas_windows = _sync_chain_params
@@ -393,6 +478,8 @@ class FusionConfigOptimizer:
 
             self._sync_chain_params()
             e2e = self._evaluate()
+            if e2e is None:
+                return None
 
         return e2e
 
@@ -492,43 +579,65 @@ class FusionConfigOptimizer:
     # ------------------------------------------------------------------
 
     def _layer4_tas_shrink(self, e2e):
-        """Shrink TAS windows while all constraints remain satisfied."""
+        """Shrink TAS windows while all constraints remain satisfied.
+
+        Uses bisection: start with a large step, shrink until infeasible,
+        back off, halve the step, and repeat until minimum granularity.
+        Only feasible states are recorded in history.
+        """
         if e2e is None:
             return None
 
-        for _ in range(self.max_iter):
-            saved = self._snapshot()
+        step = max(self.tas_step, 50)  # start coarse
 
-            # Try shrinking each TAS window
-            shrunk = False
-            for r in self.system.resources:
-                if not getattr(r, 'is_tsn_resource', False):
-                    continue
-                for prio in _tas_priorities(r):
-                    cur = r.effective_tas_window_time(prio)
-                    if cur is None or cur <= self.tas_step:
+        while step >= self.tas_step:
+            for _ in range(self.max_iter):
+                saved = self._snapshot()
+
+                shrunk = False
+                for r in self.system.resources:
+                    if not getattr(r, 'is_tsn_resource', False):
                         continue
-                    if r.tas_window_time_by_priority is None:
-                        continue
-                    r.tas_window_time_by_priority[prio] = cur - self.tas_step
-                    shrunk = True
+                    for prio in _tas_priorities(r):
+                        cur = r.effective_tas_window_time(prio)
+                        if cur is None or cur <= step:
+                            continue
+                        if r.tas_window_time_by_priority is None:
+                            continue
+                        r.tas_window_time_by_priority[prio] = cur - step
+                        shrunk = True
 
-            if not shrunk:
-                break
+                if not shrunk:
+                    break
 
-            self._sync_tas_windows()
-            e2e = self._evaluate()
-            if not self._all_satisfied(e2e):
-                self._restore(saved)
-                # Re-evaluate to get correct e2e for restored config
-                e2e = self._evaluate()
-                break
+                self._sync_tas_windows()
 
-            unsched, _ = self._check_unschedulable()
-            if unsched:
-                self._restore(saved)
-                e2e = self._evaluate()
+                # Trial evaluation — only record if feasible
+                try:
+                    task_results = analysis.analyze_system(self.system)
+                except (AssertionError, ValueError):
+                    self._restore(saved)
+                    break
+                trial_e2e = {}
+                for p in self.deadlines:
+                    trial_e2e[p] = path_analysis.end_to_end_latency(
+                        p, task_results)
+                self._total_iters += 1
+
+                feasible = all(trial_e2e[p][1] <= dl
+                               for p, dl in self.deadlines.items())
+                if not feasible:
+                    self._restore(saved)
+                    break
+
+                # Feasible — commit to history
+                self._history.append(
+                    {p.name: trial_e2e[p][1] for p in trial_e2e})
+                e2e = trial_e2e
+
+            if step <= self.tas_step:
                 break
+            step = max(step // 2, self.tas_step)
 
         return e2e
 
