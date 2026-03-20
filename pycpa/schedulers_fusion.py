@@ -47,7 +47,7 @@ from .schedulers_cqfp import (
 )
 from .schedulers_ats import (
     _get_src_port, _is_ats, _n_token, _compute_eT_block,
-    _compute_eT_block_naive, _compute_eligible_time_block,
+    _compute_eT_block_naive,
 )
 
 logger = logging.getLogger("pycpa")
@@ -629,45 +629,3 @@ class FusionSchedulerE2E(FusionScheduler):
             return task.wcet
         return FusionScheduler.response_time(self, task, q, w,
                                              details=details, **kwargs)
-
-
-# ======================================================================
-# ATS ablation variants (for fidelity experiment)
-# ======================================================================
-
-def _make_fusion_ablation(mode):
-    """Factory: return FusionScheduler subclass with selected ATS analysis.
-
-    mode:
-        'baseline'     — bucket-empty eT, eta_plus only (= FusionScheduler)
-        'token_track'  — per-frame token tracking, no group ET, no token limit
-        'group_et'     — + group eligible time
-        'full'         — + token-limited interference (= FusionSchedulerE2E ATS)
-    """
-    if mode == 'baseline':
-        return FusionScheduler
-
-    class _Ablation(FusionScheduler):
-        def _ats_eT_block(self, task, q, resource):
-            if mode == 'token_track':
-                return _compute_eligible_time_block(task, q, resource)
-            return _compute_eT_block(task, q, resource)
-
-        def _ats_spb_diff_count(self, ti, w_tilde, resource):
-            if mode == 'full':
-                return min(ti.in_event_model.eta_plus_closed(w_tilde),
-                           _n_token(w_tilde, ti, resource))
-            return ti.in_event_model.eta_plus_closed(w_tilde)
-
-        def _interferer_count(self, ti, delta_t, resource):
-            mech_ti, _ = _get_traffic_class(ti, resource)
-            if mech_ti == 'CQF':
-                t_cqf_ti = _cqf_cycle(ti, resource)
-                return ti.in_event_model.eta_plus_closed(
-                    _cqf_eta_window(delta_t, t_cqf_ti))
-            if mech_ti == 'ATS' and mode == 'full':
-                return min(ti.in_event_model.eta_plus_closed(delta_t),
-                           _n_token(delta_t, ti, resource))
-            return ti.in_event_model.eta_plus_closed(delta_t)
-
-    return _Ablation

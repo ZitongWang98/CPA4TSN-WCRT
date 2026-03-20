@@ -441,69 +441,6 @@ def e9_multi_topology():
     print(f'\nSaved {len(results)} rows to {out}')
 
 
-def e11_st_three_way():
-    """E11: ST three-way comparison across topologies and loads.
-
-    Baseline (FusionScheduler) vs refined non-aligned vs refined aligned.
-    """
-    import json
-    print('=' * 70)
-    print('E11: ST Three-Way Comparison')
-    print('=' * 70)
-
-    topos = [
-        ('Linear', build_automotive_topology),
-        ('Tree',   build_tree_topology),
-        ('Ring',   build_ring_topology),
-        ('Mesh',   build_mesh_topology),
-    ]
-    loads = [('Light', 0.5), ('Medium', 1.0), ('Heavy', 1.5)]
-    results = []
-
-    for topo_name, build_fn in topos:
-        for load_label, scale in loads:
-            # Baseline (FusionScheduler, naive ATS, sum WCRT)
-            s_b, _, paths_b = build_fn(FusionScheduler, scale=scale)
-            tr_b = analysis.analyze_system(s_b)
-
-            # Refined aligned (default: ST has tas_aligned=True)
-            s_a, _, paths_a = build_fn(FusionSchedulerE2E, scale=scale)
-            tr_a = analysis.analyze_system(s_a)
-
-            # Refined non-aligned: override tas_aligned to False for ST
-            s_na, _, paths_na = build_fn(FusionSchedulerE2E, scale=scale)
-            for name in paths_na:
-                if name.startswith('ST'):
-                    p_na, _ = paths_na[name]
-                    p_na.tas_aligned = False
-            tr_na = analysis.analyze_system(s_na)
-
-            for name in sorted(paths_b.keys()):
-                if not name.startswith('ST'):
-                    continue
-                p_b, tasks_b = paths_b[name]
-                p_a, tasks_a = paths_a[name]
-                p_na, tasks_na = paths_na[name]
-
-                baseline = sum(tr_b[t].wcrt for t in tasks_b)
-                _, e2e_aligned = path_analysis.end_to_end_latency(p_a, tr_a)
-                _, e2e_nonalign = path_analysis.end_to_end_latency(p_na, tr_na)
-                nhops = len(tasks_a)
-
-                results.append(dict(
-                    topo=topo_name, load=load_label, flow=name,
-                    hops=nhops, baseline=baseline,
-                    non_aligned=e2e_nonalign, aligned=e2e_aligned))
-                print('%-8s %-6s %-6s %2d  base=%7.1f  na=%7.1f  al=%7.1f' % (
-                    topo_name, load_label, name, nhops,
-                    baseline, e2e_nonalign, e2e_aligned))
-
-    out = os.path.join(os.path.dirname(__file__), 'e11_st_three_way.json')
-    with open(out, 'w') as f:
-        json.dump(results, f, indent=2)
-    print(f'\nSaved {len(results)} rows to {out}')
-
-
 def e1_automotive_baseline():
     """E1: Run baseline analysis on automotive topology."""
     print('=' * 70)
