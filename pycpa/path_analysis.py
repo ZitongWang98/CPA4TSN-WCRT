@@ -181,7 +181,7 @@ def _apply_tas_e2e_correction(path, task_results, tasks, sum_wcrt):
     # Corrected E2E = sum(non-gate-closed of all tasks) + K_actual * G_duration
     corrected_sum = sum_non_gate_closed + K_actual * G_duration
 
-    return corrected_sum
+    return min(corrected_sum, sum_wcrt)
 
 
 def _apply_cqf_e2e_correction(path, task_results, tasks, sum_wcrt):

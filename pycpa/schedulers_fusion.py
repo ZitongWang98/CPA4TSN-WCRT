@@ -394,7 +394,9 @@ class FusionScheduler(analysis.Scheduler):
             for _ in range(1000):
                 delta_t = max(w - phi, 0) if phi > 0 else w
                 if mech_task == 'ATS':
-                    delta_t = max(w - self._ats_eT_block(task, q, resource), 0)
+                    # Corrected window: add gate-open duration for HP accumulation
+                    gate_open = _tas_gate_closed_duration(resource) + _max_fragment_us(resource)
+                    delta_t = max(w - self._ats_eT_block(task, q, resource) + gate_open, 0)
 
                 lpb_bc = 0
                 for ti in _get_interferers(task):
@@ -671,3 +673,73 @@ def _make_fusion_ablation(mode):
             return ti.in_event_model.eta_plus_closed(delta_t)
 
     return _Ablation
+
+
+# ======================================================================
+# Coupling ablation variants (for cross-mechanism coupling experiment)
+# ======================================================================
+
+def _tas_guard_band_simple(resource):
+    """Guard band estimate (max fragment size) for gate-truncation calc."""
+    return _max_fragment_us(resource)
+
+
+def _make_coupling_ablation(gate_hpb=False, ats_overlap=False, cqf_floor=False):
+    """Factory: return FusionSchedulerE2E subclass with selected coupling effects.
+
+    gate_hpb:    Theorem 5 — gate-truncated HPB window
+    ats_overlap: Theorem 6 — ATS eligibility-gate overlap
+    cqf_floor:   Theorem 7 — CQF floor-aligned interferer count
+    """
+
+    class _CouplingAblation(FusionSchedulerE2E):
+
+        def _gate_effective_dt(self, delta_t, resource):
+            if not gate_hpb:
+                return delta_t
+            tc = resource.effective_tas_cycle_time()
+            if tc is None or tc <= 0:
+                return delta_t
+            g_total = _tas_gate_closed_duration(resource) + _tas_guard_band_simple(resource)
+            if g_total <= 0:
+                return delta_t
+            # Full cycles contribute g_total each; partial cycle pro-rated
+            full = math.floor(delta_t / tc)
+            remainder = delta_t - full * tc
+            gate_in_partial = min(g_total, remainder)
+            return max(delta_t - full * g_total - gate_in_partial, 0)
+
+        def _interferer_count(self, ti, delta_t, resource):
+            mech_ti, _ = _get_traffic_class(ti, resource)
+            # Apply gate truncation to the window for all non-TAS interferers
+            dt = self._gate_effective_dt(delta_t, resource)
+            if mech_ti == 'CQF':
+                t_cqf_ti = _cqf_cycle(ti, resource)
+                if cqf_floor and t_cqf_ti and t_cqf_ti > 0:
+                    window = math.floor(dt / t_cqf_ti) * t_cqf_ti
+                else:
+                    window = _cqf_eta_window(dt, t_cqf_ti)
+                return ti.in_event_model.eta_plus_closed(window)
+            if mech_ti == 'ATS':
+                return min(ti.in_event_model.eta_plus_closed(dt),
+                           _n_token(dt, ti, resource))
+            return ti.in_event_model.eta_plus_closed(dt)
+
+        def _ats_eT_block(self, task, q, resource):
+            eT = FusionSchedulerE2E._ats_eT_block(self, task, q, resource)
+            self._last_eT_block = eT
+            return eT
+
+        def _tas_gate_blocking(self, task, q, spb, resource):
+            gb = FusionSchedulerE2E._tas_gate_blocking(self, task, q, spb, resource)
+            if ats_overlap:
+                mech_task, _ = _get_traffic_class(task, resource)
+                if mech_task == 'ATS':
+                    eT = getattr(self, '_last_eT_block', 0)
+                    if eT > 0 and gb > 0:
+                        # Return reduced gate blocking: max(eT,gb) - eT
+                        # since eT is added separately, effective combined = max(eT,gb)
+                        gb = max(0, max(eT, gb) - eT)
+            return gb
+
+    return _CouplingAblation
